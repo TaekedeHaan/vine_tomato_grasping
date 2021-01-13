@@ -2,6 +2,7 @@ import rospy
 import rosbag
 import os
 
+from flex_grasp.msg import FlexGraspErrorCodes
 
 class DataLogger(object):
     """Generic data logger class"""
@@ -11,69 +12,139 @@ class DataLogger(object):
         self.topics = topics
         self.callbacks = callbacks
         self.types = types
+        self.bag = None
+
         if bag_name is None:
-            bag_name = node_name
-        self.bag_name = bag_name + '.bag'
+            bag_name = self.node_name
+        self.bag_name = bag_name
 
         self.publisher = {}
         for key in self.topics:
             self.publisher[key] = rospy.Publisher(self.topics[key], self.types[key], queue_size=1, latch=True)
 
-    def write_messages(self, messages, path, id):
-        """Write received data in a rosbag"""
-        full_name = id + '_' + self.bag_name
-        full_path = os.path.join(path, full_name)
-
-        rospy.loginfo("[{0}] Writing received messages to file {1}".format(self.node_name, full_path))
-        if not os.path.isdir(path):
-            rospy.loginfo("[{0}] New path, creating a new folder {1}".format(self.node_name, path))
-            os.makedirs(path)
-
-        bag = rosbag.Bag(full_path, 'w')
-
-        try:
-            for key in self.topics:
-                bag.write(self.topics[key], messages[key])
-        finally:
-            bag.close()
-
-    def publish_messages(self, bag_path, bag_id):
-        """Read data from a rosbag and publish the received data"""
-
-        full_name = bag_id + '_' + self.bag_name
-        full_path = os.path.join(bag_path, full_name)
-        rospy.loginfo("[{0}] Reading and publishing messages from file {1}".format(self.node_name, full_path))
-
-        if os.path.exists(full_path):
-            bag = rosbag.Bag(full_path)
+    def write_messages_to_bag(self, messages, bag_path, bag_id):
+        """Write data in a rosbag"""
+        success = self._open_bag(bag_path, bag_id, write=True)
+        if success:
+            try:
+                for key in self.topics:
+                    self._write_message(key, messages[key])
+            finally:
+                self._close_bag()
+            return FlexGraspErrorCodes.SUCCESS
         else:
-            rospy.logwarn("[{0}] Cannot publish bag: the file {1} does not exist!".format(self.node_name, full_path))
+            return FlexGraspErrorCodes.FAILURE
+
+    def publish_messages_from_bag(self, bag_path, bag_id):
+        """Read data from a rosbag and publish the received data"""
+        success = self._open_bag(bag_path, bag_id, read=True)
+        if success:
+            for key in self.topics:
+                topic = self.topics[key]
+                rospy.logdebug("[{0}] Reading {1} from bag on topic {2}".format(self.node_name, key, topic))
+                for topic, message, t in self.bag.read_messages(topics=topic):
+                    rospy.logdebug("[{0}] Publishing {1} from bag on topic {2}".format(self.node_name, key, topic))
+                    self.publisher[key].publish(message)
+            self._close_bag()
+            return FlexGraspErrorCodes.SUCCESS
+        else:
+            return FlexGraspErrorCodes.FAILURE
+
+    def publish_messages(self, messages, bag_path, bag_id):
+        """write messages to a bag, and publishes them"""
+        success = self._open_bag(bag_path, bag_id, write=True)
+        if success:
+            overall_result = FlexGraspErrorCodes.SUCCESS
+            for key in messages:
+                result = self._publish_message(key, messages[key])
+                if result is not FlexGraspErrorCodes.SUCCESS:
+                    overall_result = result
+            self._close_bag()
+            return overall_result
+        else:
+            return FlexGraspErrorCodes.FAILURE
+
+    def _write_message(self, key, message):
+        """Write received data in a rosbag"""
+        if isinstance(message, self.types[key]):
+            rospy.logdebug("[{0}] Writing {1} to {2} bag".format(self.node_name, key, self.bag_name))
+            self.bag.write(self.topics[key], message)
+            return FlexGraspErrorCodes.SUCCESS
+        else:
+            rospy.logwarn("[{0}] Cannot write message to {1} bag: no instance of specified type".format(self.node_name, self.bag_name))
+            return FlexGraspErrorCodes.FAILURE
+
+    def _publish_message(self, key, message):
+        if isinstance(message, self.types[key]):
+            rospy.loginfo("[{0}] Publishing {1}".format(self.node_name, key))
+            self._write_message(key, message)
+            self.publisher[key].publish(message)
+            return FlexGraspErrorCodes.SUCCESS
+        else:
+            rospy.logwarn("[{0}] Cannot publish message: no instance of specified type".format(self.node_name))
+            return FlexGraspErrorCodes.FAILURE
+
+    def _open_bag(self, bag_path, bag_id, read=False, write=False):
+        """open bag to read or write"""
+        if self.bag is not None:
+            rospy.logwarn("[{0}] Did not close previous {1} bag".format(self.node_name, self.bag_name))
+            self._close_bag()
+
+        full_name = bag_id + '_' + self.bag_name + '.bag'
+        full_path = os.path.join(bag_path, full_name)
+
+        rospy.loginfo("[{0}] Opening bag {1}".format(self.node_name, full_path))
+
+        if not os.path.isdir(bag_path):
+            rospy.loginfo("[{0}] New path, creating a new folder {1}".format(self.node_name, bag_path))
+            os.makedirs(bag_path)
+
+        if write and read:
+            mode = 'a'
+        elif read:
+            mode = 'r'
+            if not os.path.isfile(full_path):
+                rospy.logwarn("[{0}] Cannot read file {1}: it does not exist on path {2}".format(self.node_name, full_name, bag_path))
+                return False
+        elif write:
+            if os.path.isfile(full_path):
+                rospy.logwarn("[{0}] Cannot write to file {1}: it already exists on path {2}".format(self.node_name, full_name, bag_path))
+                return False
+            mode = 'w'
+        else:
+            rospy.logwarn("[{0}] Cannot open bag: please specify whether you want to read or write!".format(self.node_name))
             return False
 
-        for key in self.topics:
-            topic = self.topics[key]
-            rospy.logdebug("[{0}] reading {1} from bag on topic {2}".format(self.node_name, key, topic))
-            for topic, message, t in bag.read_messages(topics=topic):
-                self.publisher[key].publish(message)
+        self.bag = rosbag.Bag(full_path, mode)
+        return True
 
-        bag.close()
+    def _close_bag(self):
+        """close bag, if not properly closed information will be lost!"""
+        if self.bag is not None:
+            rospy.loginfo("[{0}] Closing previous {1} bag".format(self.node_name, self.bag_name))
+            self.bag.close()
+            self.bag = None
 
-    def receive_messages(self):
-        """Read data from a rosbag and trigger the callbacks the received data"""
-        if self.callbacks is None:
-            rospy.logwarn("[{0}] Data logger can not trigger callbacks: they are not defined!".format(self.node_name))
-            return
+    def reset(self):
+        pass
 
-        rospy.logdebug("[{0}] Reading and publishing messages from file {1}".format(self.node_name, self.bag_name))
-        bag = rosbag.Bag(self.bag_name)
+    def wait_for_messages(self, time_out=1):
+        pass
 
-        for key in self.topics:
-            topic = self.topics[key]
-            rospy.logdebug("[{0}] reading {1} from bag on topic {2}".format(self.node_name, key, topic))
-            for topic, message, t in bag.read_messages(topics=topic):
-                callback = self.callbacks[key]
-                callback(message, force=True)
-
-        bag.close()
-
-
+    # def receive_messages(self):
+    #     """Read data from a rosbag and trigger the callbacks the received data"""
+    #     if self.callbacks is None:
+    #         rospy.logwarn("[{0}] Data logger can not trigger callbacks: they are not defined!".format(self.node_name))
+    #         return
+    #
+    #     rospy.logdebug("[{0}] Reading and publishing messages from file {1}".format(self.node_name, self.bag_name))
+    #     bag = rosbag.Bag(self.bag_name)
+    #
+    #     for key in self.topics:
+    #         topic = self.topics[key]
+    #         rospy.logdebug("[{0}] reading {1} from bag on topic {2}".format(self.node_name, key, topic))
+    #         for topic, message, t in bag.read_messages(topics=topic):
+    #             callback = self.callbacks[key]
+    #             callback(message, force=True)
+    #
+    #     bag.close()
