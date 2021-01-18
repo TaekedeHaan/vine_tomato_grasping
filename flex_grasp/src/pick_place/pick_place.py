@@ -23,54 +23,41 @@ class PickPlace(object):
     node_name = 'PICK PLACE' 
     frequency = 10
     
-    def __init__(self):
+    def __init__(self, node_name="pick_place", playback=False):
+
+        self.node_name = node_name
+
+        self.playback = playback
+        if self.playback:
+            rospy.loginfo("[{0}] Transform pose launched in playback mode!".format(self.node_name))
+
         self.state = "init"
         self.prev_state = None
         self.command = None
-        
-        
-        self.debug_mode = rospy.get_param("pick_place/debug")
-        
-        if self.debug_mode:
-            log_level = rospy.DEBUG
-            rospy.loginfo("[%s] Launching pick place node in debug mode", self.node_name)
-        else:
-            log_level = rospy.INFO
-        
-        rospy.init_node("pick_place", anonymous=True, log_level=log_level)
-        self.rate = rospy.Rate(self.frequency)               
-               
+
+        # state machine input
+        rospy.Subscriber("~e_in", String, self.e_in_cb)
         self.pub_e_out = rospy.Publisher("~e_out", FlexGraspErrorCodes, queue_size=10, latch=True)
         
         # init move robot communication
-        move_robot_topic = "move_robot"
-        self.move_robot_communication = Communication(move_robot_topic, timeout = 15)                   
-                   
+        self.move_robot_communication = Communication("move_robot", timeout=15)
         self.pub_move_robot_pose = rospy.Publisher("robot_pose", PoseStamped, queue_size=10, latch=False)                   
-                   
-         # Subscribe
-        rospy.Subscriber("~e_in", String, self.e_in_cb)
-        
+
         # create dict which stores all poses        
-        keys = ['pre_grasp', 'grasp', 'pre_place','place']
+        keys = ['pre_grasp', 'grasp', 'pre_place', 'place']
         self.pose = dict.fromkeys(keys)
         
-        # subscibe to corresponding poses
+        # subscribe to corresponding poses
         values = [key + '_pose' for key in keys]
         pose_topic = dict(zip(keys, values))
         
         for key in pose_topic:
             rospy.Subscriber(pose_topic[key], PoseStamped, self.pose_in_cb, key)
-        
-        
-        self.robot_base_frame = rospy.get_param('robot_base_frame')
-        self.planning_frame = rospy.get_param('planning_frame')
 
-    
     def e_in_cb(self, msg):
         if self.command is None:
             self.command = msg.data
-            rospy.logdebug("[PICK PLACE] Received command in message: %s", self.command)
+            rospy.logdebug("[{0}] Received command in message: {1}".format(self.node_name, self.command))
 
             # reset outputting message
             msg = FlexGraspErrorCodes()
@@ -80,55 +67,54 @@ class PickPlace(object):
     def pose_in_cb(self, msg, key):
         rospy.logdebug("[%s] Received %s pose", self.node_name, key)
         self.pose[key] = msg
-
     
     def command_to_pose(self, pose):
-        rospy.logdebug("[PICK PLACE] Commanding move robot to pose")
+        rospy.logdebug("[{0}] Commanding move robot to pose".format(self.node_name))
         if pose is None:
-            rospy.logwarn("[PICK PLACE] Cannot command to pose, since the pose is None!")
+            rospy.logwarn("[{0}] Cannot command to pose, since the pose is None!".format(self.node_name))
             return FlexGraspErrorCodes.REQUIRED_DATA_MISSING
         
         self.pub_move_robot_pose.publish(pose)
         return self.move_robot_communication.wait_for_result("move_manipulator")
         
     def man_pre_grasp(self):
-        rospy.logdebug("[PICK PLACE] Commanding move robot to pre grasp")
+        rospy.logdebug("[{0}] Commanding move robot to pre grasp".format(self.node_name))
         return self.command_to_pose(self.pose['pre_grasp'])
             
     def man_grasp(self):
-        rospy.logdebug("[PICK PLACE] Commanding move robot to grasp")
+        rospy.logdebug("[{0}] Commanding move robot to grasp".format(self.node_name))
         return self.command_to_pose(self.pose['grasp'])
             
     def man_pre_place(self):
-        rospy.logdebug("[PICK PLACE] Commanding move robot to pre place")
+        rospy.logdebug("[{0}] Commanding move robot to pre place".format(self.node_name))
         return self.command_to_pose(self.pose['pre_place'])
         
     def man_place(self):
-        rospy.logdebug("[PICK PLACE] Commanding move robot to place")
+        rospy.logdebug("[{0}] Commanding move robot to place".format(self.node_name))
         return self.command_to_pose(self.pose['place'])
         
     def command_to_home(self):
-        rospy.logdebug("[PICK PLACE] Commanding move robot to home")
+        rospy.logdebug("[{0}] Commanding move robot to home".format(self.node_name))
         result = self.move_robot_communication.wait_for_result("home")
         return result
 
     def apply_pre_grasp_ee(self):
-        rospy.logdebug("[PICK PLACE] Aplying pre-grasp with end effector")
+        rospy.logdebug("[{0}] Applying pre-grasp with end effector".format(self.node_name))
         result = self.move_robot_communication.wait_for_result("open")
         return result
                       
     def apply_grasp_ee(self):
-        rospy.logdebug("[PICK PLACE] Aplying grasp with end effector")
+        rospy.logdebug("[{0}] Applying grasp with end effector".format(self.node_name))
         result = self.move_robot_communication.wait_for_result("grasp")
         return result
         
     def apply_release_ee(self):
-        rospy.logdebug("[PICK PLACE] Aplying release with end effector")
+        rospy.logdebug("[{0}] Applying release with end effector".format(self.node_name))
         result = self.move_robot_communication.wait_for_result("release")
         return result
 
     def pick(self):
-        rospy.logdebug("[PICK PLACE] Picking object")
+        rospy.logdebug("[{0}] Picking object".format(self.node_name))
             
         result = self.man_pre_grasp()
             
@@ -146,9 +132,8 @@ class PickPlace(object):
          
         return result
 
-
     def place(self):
-        rospy.logdebug("[PICK PLACE] Placing object")
+        rospy.logdebug("[{0}] Placing object".format(self.node_name))
         
         result = self.man_pre_place()
         if result == FlexGraspErrorCodes.SUCCESS:
@@ -167,29 +152,23 @@ class PickPlace(object):
             result = self.reset_msg()
             
         return result
-            
-            
+
     def reset_msg(self):
-        rospy.logdebug("[PICK PLACE] Resetting for next grasp")
+        rospy.logdebug("[{0}] Resetting for next grasp".format(self.node_name))
         for key in self.pose:
             self.pose[key] = None
-            
-        self.object_features = None
+
         return FlexGraspErrorCodes.SUCCESS            
-            
 
     def received_all_data(self):
         success = True
         for key in self.pose:
             if self.pose[key] is None:
                 success = False
- 
         return success
 
-    # Log state update
     def log_state_update(self):
-        rospy.loginfo("[PICK PLACE] updated pick place state, from %s to %s",
-                      self.prev_state, self.state)            
+        rospy.loginfo("[{0}] updated pick place state, from {1} to {2}".format(self.node_name, self.prev_state, self.state))
 
     def update_state(self, success):
 
@@ -220,32 +199,32 @@ class PickPlace(object):
         # State dependent actions
         if self.state == "init" and not self.received_all_data():
             if self.command == "pick":
-                rospy.logwarn("[PICK PLACE] Can not pick object, it still needs to be detected!")
+                rospy.logwarn("[{0}] Can not pick object, it still needs to be detected!".format(self.node_name))
                 result = FlexGraspErrorCodes.STATE_ERROR
 
         if self.command == "e_init":
-            rospy.logdebug("[PICK PLACE] executing e_init command")
+            rospy.logdebug("[{0}] executing e_init command".format(self.node_name))
             result = FlexGraspErrorCodes.SUCCESS
             
         if self.state == "idle":
             if self.command == "pick":
                 result = self.pick()
             elif self.command == "place":
-                rospy.logwarn("Can not place object, it is not picked!")
+                rospy.logwarn("[{0}] Can not place object, it is not picked!".format(self.node_name))
                 result = FlexGraspErrorCodes.STATE_ERROR
         
         elif self.state == "picked":
             if self.command == "place":
                 result = self.place()
             elif self.command == "pick":
-                rospy.logwarn("[PICK PLACE] Can not pick object, it still needs to be placed!")
+                rospy.logwarn("[{0}] Can not pick object, it still needs to be placed!".format(self.node_name))
                 result = FlexGraspErrorCodes.STATE_ERROR
             
         elif self.command == "reset":
             result = self.reset_msg()
 
-        success = result == FlexGraspErrorCodes.SUCCESS
-        if result == None:
+        success = (result == FlexGraspErrorCodes.SUCCESS)
+        if result is None:
             success = None
         self.update_state(success)
 
@@ -255,19 +234,3 @@ class PickPlace(object):
             flex_grasp_error_log(result, self.node_name)
             self.pub_e_out.publish(msg)            
             self.command = None
-                      
-                      
-def main():
-    try:
-        pick_place = PickPlace()
-        while not rospy.core.is_shutdown():
-            pick_place.take_action()
-            pick_place.rate.sleep()
-
-    except rospy.ROSInterruptException:
-        return
-    except KeyboardInterrupt:
-        return
-
-if __name__ == '__main__':
-    main()

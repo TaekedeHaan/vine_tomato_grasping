@@ -6,7 +6,7 @@ from std_msgs.msg import String
 
 class ExperimentPathInterface(object):
     EXPERIMENT_NAME_OPTIONS = ['default', 'simple', 'moderate', 'advanced']
-    LOG_FOLDER = 'thesis_data'
+    LOG_FOLDER = 'results'
     NEW_STRING = "  (new)"
 
     def __init__(self, experiment_name_button, experiment_id_button):
@@ -91,8 +91,13 @@ class ExperimentPathInterface(object):
             else:
                 contents.sort()
                 for file_name in contents:
-                    file_id = int(file_name[:3])
-                    options.append(str(file_id).zfill(3))
+                    file_id = file_name[:3]
+                    if file_id.isdigit():
+                        options.append(file_id.zfill(3))
+                if len(options) > 0:
+                    file_id = int(options[-1])
+                else:
+                    file_id = 0
                 options.append(str(file_id + 1).zfill(3) + self.NEW_STRING)
 
         return options
