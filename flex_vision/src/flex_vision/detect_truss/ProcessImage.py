@@ -63,6 +63,10 @@ class ProcessImage(object):
         self.grasp_angle_local = None
         self.grasp_angle_global = None
 
+        self.background_pixels = 0
+        self.tomato_pixels = 0
+        self.stem_pixels = 0
+
         self.settings = settings.initialize_all()
 
     def add_image(self, img_rgb, px_per_mm=None, name=None):
@@ -152,6 +156,10 @@ class ProcessImage(object):
         self.tomato = tomato
         self.peduncle = peduncle
         self.background = background
+
+        self.background_pixels = np.sum(background)
+        self.tomato_pixels = np.sum(tomato)
+        self.stem_pixels = np.sum(peduncle)
 
         if self.save:
             self.save_results(self.name, pwd=pwd)
@@ -606,7 +614,7 @@ def load_px_per_mm(pwd, img_id):
 
 def main():
     i_start = 1
-    i_end = 2
+    i_end = 85
     N = i_end - i_start
 
     save = False
@@ -646,9 +654,14 @@ def main():
         with open(pwd_json_file, "w") as write_file:
             json.dump(json_data, write_file)
 
-    if True:  # save is not True:
+    if False: # True:  # save is not True:
         plot_timer(Timer.timers['main'].copy(), threshold=0.02, pwd=pwd_results, name='main', title='Processing time',
                    startangle=-20)
+
+    total_pixels = process_image.background_pixels + process_image.tomato_pixels + process_image.stem_pixels
+    print(float(process_image.background_pixels)/total_pixels)
+    print(float(process_image.tomato_pixels) / total_pixels)
+    print(float(process_image.stem_pixels) / total_pixels)
 
     total_key = "process image"
     time_tot_mean = np.mean(Timer.timers[total_key]) / 1000
