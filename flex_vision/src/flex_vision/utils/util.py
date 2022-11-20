@@ -16,6 +16,7 @@ from matplotlib import pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 # Flex vision imports
+from flex_vision import constants
 from flex_vision.utils import color_maps
 
 ee_color = (255, 150, 0)
@@ -35,12 +36,8 @@ vertex_layer = 7
 high_layer = 8  # arrows, com
 top_layer = 10  # junctions, com, text
 
-EXT = 'pdf'
-LINEWIDTH = 3.4  # inch
 
-# IEEE standards for non-vector graphics for color and grayscale images are >300dpi.
-# IEEE standards for black and white line art are >600dpi.
-DPI = 600
+LINEWIDTH = 3.4  # inch
 
 # Options
 params = {'text.usetex': True,
@@ -227,16 +224,10 @@ def grey_2_rgb(img_grey, vmin=0, vmax=255):
     return img_rgb
 
 
-def save_img(img, pwd, name, dpi=None, title="", title_size=20, ext=None, color_map='plasma', vmin=None,
+def save_img(img, pwd, name, dpi=constants.DPI, title="", title_size=20, ext=constants.SAVE_EXTENSION, color_map='plasma', vmin=None,
              vmax=None):
 
-    if dpi is None:
-        dpi = DPI
-
-    if ext is None:
-        ext = EXT
-
-    plt.rcParams["savefig.format"] = ext
+    plt.rcParams["savefig.format"] = constants.SAVE_EXTENSION
     plt.rcParams["savefig.bbox"] = 'tight'
     plt.rcParams['axes.titlesize'] = title_size
     # plt.rcParams['image.cmap'] = color_map
@@ -271,12 +262,7 @@ def save_img(img, pwd, name, dpi=None, title="", title_size=20, ext=None, color_
     plt.close(fig)
 
 
-def save_fig(fig, pwd, name, dpi=None, no_ticks=True, ext=None):
-    if ext is None:
-        ext = EXT
-
-    if dpi is None:
-        dpi = DPI
+def save_fig(fig, pwd, name, dpi=constants.DPI, no_ticks=True, ext=constants.SAVE_EXTENSION):
 
     # eps does not support transparancy
     # plt.rcParams["savefig.format"] = ext
@@ -297,7 +283,7 @@ def save_fig(fig, pwd, name, dpi=None, no_ticks=True, ext=None):
 
     # make dir if it does not yet exist
     make_dirs(pwd)
-    fig.savefig(os.path.join(pwd, name + '.' + ext), dpi=dpi)  # , bbox_inches='tight', pad_inches=0)
+    fig.savefig(os.path.join(pwd, name + ext), dpi=dpi)  # , bbox_inches='tight', pad_inches=0)
     plt.close(fig)
 
 
@@ -597,14 +583,8 @@ def plot_error(tomato_pred, tomato_act, error,
                name=None,
                use_mm=False,
                title=None,
-               dpi=None,
-               ext=None):
-
-    if ext is None:
-        ext = EXT
-
-    if dpi is None:
-        dpi = DPI
+               dpi=constants.DPI,
+               ext=constants.SAVE_EXTENSION):
 
     fig = plt.gcf()
     ax = plt.gca()
