@@ -1,18 +1,19 @@
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python2
 """
 Created on Thu Jul 16 19:49:14 2020
 
 @author: taeke
 """
-
 import os
-import cv2
 import time
 
+# External imports
+import cv2
+
+# Flex vision imports
 from src.detect_truss.util import change_brightness
 from src.detect_truss.util import make_dirs, load_rgb
 from src.detect_truss.ProcessImage import ProcessImage
-
 from src.detect_truss.detect_tomato import detect_tomato, set_detect_tomato_settings
 
 if __name__ == '__main__':

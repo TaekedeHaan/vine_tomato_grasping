@@ -1,7 +1,12 @@
+#!/usr/bin/env python2
 import unittest
-from matplotlib import pyplot as plt
-from flex_vision.utils import util
+
+# External imports
 import numpy as np
+from matplotlib import pyplot as plt
+
+# External imports
+from flex_vision.utils import util
 from flex_vision.detect_truss.ProcessImage import ProcessImage
 from flex_vision.analyze_results.analyze_results import index_true_positives
 
@@ -52,10 +57,10 @@ class DetectTrussTests(unittest.TestCase):
         centers_label = np.array(tomatoes['centers'])[i_label]
         radii_label = np.array(tomatoes['radii'])[i_label]
 
-
         print 'predicted features, centers: ', centers_prediction, ' radii: ', radii_prediction
         print 'actual features, centers: ', centers_label, ' radii: ', radii_label
         np.testing.assert_almost_equal(0, 0)
+
 
 def generate_truss_features(truss_center, radii_range, angle_deg=30):
     """
@@ -80,16 +85,18 @@ def generate_truss_features(truss_center, radii_range, angle_deg=30):
     peduncle = {'centers': [[x, y],
                             rotate_point([shift, -tomato_dist/2], rotation_matrix, truss_center),
                             rotate_point([-shift, tomato_dist/2], rotation_matrix, truss_center)],
-                'angles': [-angle_rad, np.pi/2 - angle_rad, np.pi/2- angle_rad],
+                'angles': [-angle_rad, np.pi/2 - angle_rad, np.pi/2 - angle_rad],
                 'length': [300, tomato_dist, tomato_dist],
                 'junctions': [rotate_point([shift, 0], rotation_matrix, truss_center),
                               rotate_point([-shift, 0], rotation_matrix, truss_center)]}
 
     return tomatoes, peduncle
 
+
 def rotate_point(point, rot_mat, transform):
     vec = np.matmul(np.array(point, ndmin=2), rot_mat) + np.array(transform, ndmin=2)
     return vec[0].tolist()
+
 
 if __name__ == '__main__':
     unittest.main()

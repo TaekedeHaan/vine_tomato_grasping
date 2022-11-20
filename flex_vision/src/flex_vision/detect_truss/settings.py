@@ -1,8 +1,7 @@
-#!/usr/bin/env python2
-# -*- coding: utf-8 -*-
 """
 @author: taeke
 """
+
 
 def compute_grasp(grasp_length_min_px=30.0,
                   grasp_length_min_mm=15.0,
@@ -15,6 +14,7 @@ def compute_grasp(grasp_length_min_px=30.0,
                 'open_dist_mm': open_dist_mm}
 
     return settings
+
 
 def detect_peduncle(branch_length_min_px=15,
                     branch_length_min_mm=10):

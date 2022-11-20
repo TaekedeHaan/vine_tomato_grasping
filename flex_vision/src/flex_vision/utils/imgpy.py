@@ -1,24 +1,22 @@
-#!/usr/bin/env python2
-# -*- coding: utf-8 -*-
 """
 Created on Tue Jun 16 16:05:23 2020
 
 @author: taeke
 """
+import warnings
 
+# External imports
 import cv2
 import numpy as np
 from matplotlib import pyplot as plt
-
 from skimage.measure import label, regionprops
 from skimage.transform import rotate as ski_rotate
-
-import warnings
 
 
 def check_dimensions(image1, image2):
     """check_dimensions"""
     return image1.shape == image2.shape
+
 
 def add(image1, image2):
     """add two images"""
@@ -42,11 +40,13 @@ def rotate(image, angle):
     image_rotate = (value_max * image_rotate).astype(dtype, copy=False)
     return image_rotate
 
+
 def crop(image, angle, bbox):
     """returns a new image, rotated by angle in radians and cropped by the boundingbox"""
     image = rotate(image, angle)
     image = cut(image, bbox)
     return image
+
 
 def cut(image, bbox):
     """returns the image cut, cut at the boundingbox"""
@@ -65,6 +65,7 @@ def compute_angle(image):
         warnings.warn("Multiple regions found!")
 
     return regions[0].orientation
+
 
 def bbox(image):
     """find bounding box around a mask"""

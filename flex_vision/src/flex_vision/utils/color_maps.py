@@ -1,25 +1,26 @@
+#!/usr/bin/env python2
 """
 Produces colormaps by curving through LAB and HSV colour space, inspired by
 "Lab color scale" by Steve Eddins 09 May 2006 (Updated 10 May 2006)
 (BSD license)
 http://www.mathworks.co.uk/matlabcentral/fileexchange/11037-lab-color-scale
 """
+# External imports
 import numpy as np
-from matplotlib import cm
-
 from colormath.color_conversions import convert_color
 from colormath.color_objects import LabColor, sRGBColor, HSVColor
+from matplotlib import cm
 
 
 def irgb_from_lab(l, a, b):
     rgb = np.array(convert_color(LabColor(l, a, b),
-                              sRGBColor).get_value_tuple())
+                                 sRGBColor).get_value_tuple())
     return limit_rgb(rgb)
 
 
 def irgb_from_hsv(h, s, v):
     rgb = np.array(convert_color(HSVColor(h, s, v),
-                              sRGBColor).get_value_tuple())
+                                 sRGBColor).get_value_tuple())
     return limit_rgb(rgb)
 
 
@@ -53,6 +54,7 @@ def lab_color_scale(lutsize=256):
 
     return cm.colors.LinearSegmentedColormap.from_list('lab_color_scale', rgbs,
                                                        lutsize)
+
 
 def hsv_color_scale(lutsize=256):
     """

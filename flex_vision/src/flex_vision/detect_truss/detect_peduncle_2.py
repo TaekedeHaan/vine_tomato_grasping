@@ -1,27 +1,27 @@
-#!/usr/bin/env python2
 # -*- coding: utf-8 -*-
-
-import numpy as np
-import cv2
 import os
 
-from skimage.morphology import skeletonize
-import skan
+# External imports
+import cv2
+import matplotlib as mpl
+import numpy as np
 import scipy.sparse.csgraph as csgraph
-from matplotlib import pyplot as plt
+import skan
 from matplotlib import animation
-
+from matplotlib import pyplot as plt
+from skimage.morphology import skeletonize
 from sklearn import linear_model
+from sklearn.metrics.pairwise import euclidean_distances
 
+# Flex vision imports
 from flex_vision.utils.util import add_circles, add_arrows, add_contour, add_strings
 from flex_vision.utils.util import plot_image, save_fig
 from flex_vision.utils.util import remove_blobs, bin2img, img2bin
-from sklearn.metrics.pairwise import euclidean_distances
-import matplotlib as mpl
 
 NEW_PATH_COLOUR = [130, 50, 230]
 JUNC_COLOR = (100, 0, 200)
 END_COLOR = (200, 0, 0)
+
 
 def detect_peduncle(peduncle_img, settings=None, px_per_mm=None, bg_img=None, save=False, name="", pwd=""):
     if settings is None:
@@ -66,7 +66,8 @@ def detect_peduncle(peduncle_img, settings=None, px_per_mm=None, bg_img=None, sa
     end_nodes = coords_to_nodes(pixel_coordinates, end_coords[:, [1, 0]])
     junc_nodes = coords_to_nodes(pixel_coordinates, junc_coords[:, [1, 0]])
 
-    path, path_length_px, branch_data = find_path(dist, pred, junc_nodes, end_nodes, pixel_coordinates, bg_image=bg_img.copy(), do_animate=False)
+    path, path_length_px, branch_data = find_path(
+        dist, pred, junc_nodes, end_nodes, pixel_coordinates, bg_image=bg_img.copy(), do_animate=False)
 
     branch_data = get_branch_center(branch_data, dist, pixel_coordinates, skeleton_img)
 
@@ -212,7 +213,7 @@ def update_skeleton(skeleton_img, skeleton, i_remove):
         cols = px_coords[:, 1]
         skeleton_prune_img[rows, cols] = 0
 
-    ## closing
+    # closing
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
     img = cv2.dilate(skeleton_prune_img, kernel, iterations=1)
     img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
@@ -300,6 +301,7 @@ def get_path_coordinates(path, pixel_coordinates):
     row = path_coordinates[:, 0]
     return row, col
 
+
 def node_coord_angle(src, dst):
     return np.rad2deg(np.arctan2((dst[0] - src[0]), (dst[1] - src[1])))
 
@@ -329,7 +331,7 @@ def get_branch_center(branch_data, dist_mat, pixel_coordinates, skeleton_img):
         center_node_coord = loc[i]  # [loc[i, 0], loc[i, 1]]
 
         # branch_index = branch_data.index[i]
-        coords = pixel_coordinates[branch]  ## skeleton.path_coordinates(i_row)
+        coords = pixel_coordinates[branch]  # skeleton.path_coordinates(i_row)
         new_branch = {'coords': coords[:, [1, 0]],
                       'src_node_coord': src_node_coord[[1, 0]],
                       'dst_node_coord': dst_node_coord[[1, 0]],
@@ -394,8 +396,10 @@ def visualize_skeleton(img, skeleton_img, skeletonize=False, coord_junc=None, co
                 branch_center[branch_type].append(branch['center_node_coord'])
                 branch_angle[branch_type].append(branch['angle'])
 
-        add_arrows(branch_center['junction-junction'], np.deg2rad(branch_angle['junction-junction']), color=JUNC_COLOR, linewidth=2)
-        add_arrows(branch_center['junction-endpoint'], np.deg2rad(branch_angle['junction-endpoint']), color=END_COLOR, linewidth=2)
+        add_arrows(branch_center['junction-junction'],
+                   np.deg2rad(branch_angle['junction-junction']), color=JUNC_COLOR, linewidth=2)
+        add_arrows(branch_center['junction-endpoint'],
+                   np.deg2rad(branch_angle['junction-endpoint']), color=END_COLOR, linewidth=2)
 
     if (junc_nodes is not None) or (end_nodes is not None):
         if junc_nodes is not None:
@@ -525,7 +529,8 @@ class PeduncleAnimation(object):
         add_circles(end_coords, radii=3, fc=END_COLOR, linewidth=0, zorder=1, alpha=0.25)
 
         color = np.array(JUNC_COLOR).astype(float) / 255
-        self.ax.scatter(self.pixel_coordinates[:, 0], self.pixel_coordinates[:, 1], color=color, linewidth=0, alpha=0.05)
+        self.ax.scatter(self.pixel_coordinates[:, 0], self.pixel_coordinates[:, 1],
+                        color=color, linewidth=0, alpha=0.05)
 
     def add_frame(self, path, subpath, src_node_id, dst_node_id):
         """Add a frame"""

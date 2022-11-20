@@ -1,22 +1,21 @@
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python2
 """
 Created on Fri May 22 12:04:59 2020
 
 @author: taeke
 """
-
-## imports ##
-import os  # os.sep
+import os
 import cv2
 import json
 
-# custom functions
+# Flex vision imports
 from flex_vision.utils.util import load_rgb
 from flex_vision.utils.util import make_dirs
 from flex_vision.detect_truss.ProcessImage import ProcessImage
 
 # ls | cat -n | while read n f; do mv "$f" `printf "%03d.png" $n`; done
 null = None
+
 
 def initialize_label_me_dict(image_name, width, height):
     """initialize label me dictionary"""
@@ -69,6 +68,7 @@ def get_kili_shape(contour, label, width, height):
         "type": "polygon"
     }
     return annotation
+
 
 def main():
     i_start = 1  # tomato file to load
@@ -132,6 +132,7 @@ def main():
 
         count = count + 1
         print("completed image %d out of %d" % (count, N))
+
 
 if __name__ == '__main__':
     main()

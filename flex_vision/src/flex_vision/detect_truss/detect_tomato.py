@@ -1,15 +1,14 @@
-#!/usr/bin/env python2
-# -*- coding: utf-8 -*-
 """
 @author: taeke
 """
 
-## imports ##
+# External imports
 import cv2
 import numpy as np
 
-# custom functions
+# Flex vision imports
 from flex_vision.utils.util import plot_features
+
 
 def compute_com(centers, radii):
     """
@@ -48,7 +47,6 @@ def detect_tomato(img_segment, settings=None, px_per_mm=None, img_rgb=None,
     centers_overlap = radii_overlap = com_overlap = None
     centers = radii = com = None
 
-
     # fit circles: [x, y, radius]
     circles = cv2.HoughCircles(truss_blurred,
                                cv2.HOUGH_GRADIENT,
@@ -61,7 +59,7 @@ def detect_tomato(img_segment, settings=None, px_per_mm=None, img_rgb=None,
 
     if circles is not None:
 
-        centers_overlap = circles[0][:, 0:2] # [x, y, r]
+        centers_overlap = circles[0][:, 0:2]  # [x, y, r]
         radii_overlap = circles[0][:, 2]
         com_overlap = compute_com(centers_overlap, radii_overlap)
         n_overlap = len(radii_overlap)
@@ -107,7 +105,3 @@ def find_overlapping_tomatoes(centers, radii, img_segment, ratio_threshold=0.5):
             iKeep.append(i)
 
     return iKeep
-
-
-if __name__ == '__main__':
-    print("This file has no main!")

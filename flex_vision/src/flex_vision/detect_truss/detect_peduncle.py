@@ -1,27 +1,25 @@
-# -*- coding: utf-8 -*-
-
-## imports ##
+# External imports
 import cv2
 import numpy as np
 import skan
-
-# custom functions
-from flex_vision.utils.util import add_circles, add_arrows
-from flex_vision.utils.util import save_img, save_fig
-from flex_vision.utils.util import remove_blobs, bin2img, img2bin
-
+from matplotlib import pyplot as plt
 from skimage.morphology import skeletonize
 from sklearn import linear_model
 
+# Flex vision imports
+from flex_vision.utils.util import add_circles, add_arrows
+from flex_vision.utils.util import save_img, save_fig
+from flex_vision.utils.util import remove_blobs, bin2img, img2bin
 from flex_vision.utils.timer import Timer
 from flex_vision.utils.counter import Counter
-from matplotlib import pyplot as plt
 
 
 def set_detect_peduncle_settings(branch_length_min_px=15,
                                  branch_length_min_mm=10):
-    settings = {'branch_length_min_px': branch_length_min_px,
-                'branch_length_min_mm': branch_length_min_mm}
+    settings = {
+        'branch_length_min_px': branch_length_min_px,
+        'branch_length_min_mm': branch_length_min_mm
+    }
     return settings
 
 
@@ -112,7 +110,7 @@ def update_skeleton(skeleton_img, skeleton, i_remove):
         for px_coord in px_coords:
             skeleton_prune_img[px_coord[0], px_coord[1]] = 0
 
-    ## closing
+    # closing
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
     img = skeleton_prune_img
     img = cv2.dilate(skeleton_prune_img, kernel, iterations=1)
@@ -131,7 +129,7 @@ def generate_skeleton_img(skeleton, i_keep, shape, dtype=np.uint8):
         for px_coord in px_coords:
             skeleton_img[px_coord[0], px_coord[1]] = max_value
 
-    ## closing
+    # closing
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
     img = skeleton_img
     img = cv2.dilate(skeleton_img, kernel, iterations=1)
@@ -147,13 +145,13 @@ def threshold_branch_length(skeleton_img, distance_threshold):
     tip_junction = branch_data['branch-type'] == 1
 
     b_remove = (branch_data['branch-distance'] < distance_threshold) & tip_junction
-    i_remove = b_remove.to_numpy().nonzero()[0] # np.argwhere(b_remove)[:, 0]
+    i_remove = b_remove.to_numpy().nonzero()[0]  # np.argwhere(b_remove)[:, 0]
 
     return update_skeleton(skeleton_img, skeleton, i_remove)
 
 
 @Timer("filter branch length", name_space='peduncle', append=False)
-def filter_branch_length(skeleton_img, branch_data=None, debug =False):
+def filter_branch_length(skeleton_img, branch_data=None, debug=False):
     skeleton = skan.Skeleton(skeleton_img)
 
     if branch_data is None:
@@ -267,6 +265,7 @@ def node_coord_angle(src, dst):
     angle = np.rad2deg(np.arctan2((dst[1] - src[1]), (dst[0] - src[0])))
     return angle
 
+
 def visualize_skeleton(img, skeleton_img, skeletonize=False, coord_junc=None, junc_nodes=None, end_nodes=None,
                        coord_end=None, branch_data=None, name="", pwd=None):
     junc_color = (100, 0, 200)
@@ -330,10 +329,10 @@ def get_branch_center(branch_data, skeleton, skeleton_img):
     loc = np.transpose(np.matrix(np.vstack((row, col))))
     all_branch = {'junction-junction': [], 'junction-endpoint': []}
 
-    for i_row, row in branch_data.iterrows(): # iterrows():
+    for i_row, row in branch_data.iterrows():  # iterrows():
 
         # px_coords = skeleton.path_coordinates(i).astype(int)
-        # new_branch = {'src_node_coord' : , 'dst_node_coord' :, 'center_node_coord':, 'angle': [], 'length': []}        
+        # new_branch = {'src_node_coord' : , 'dst_node_coord' :, 'center_node_coord':, 'angle': [], 'length': []}
 
         dst_node_coord = np.array((row['coord-dst-{1}'], row['coord-dst-{0}']))
         src_node_coord = np.array((row['coord-src-{1}'], row['coord-src-{0}']))
@@ -463,7 +462,7 @@ def detect_peduncle(peduncle_img, settings=None, px_per_mm=None, bg_img=None,
     # get all node coordiantes
     all_juncions, _ = get_node_coord(skeleton_img)
 
-    # determine main peduncle   
+    # determine main peduncle
     skeleton_img, i_keep = filter_branch_length(skeleton_img)
     branch_data = branch_data.loc[i_keep]
 
@@ -489,7 +488,6 @@ def detect_peduncle(peduncle_img, settings=None, px_per_mm=None, bg_img=None,
     # fig = plt.figure()
     # plt.imshow(branch_image)
     # plt.show()
-
 
     if save:
         visualize_skeleton(bg_img.copy(), skeleton_img, coord_junc=coord_junc,

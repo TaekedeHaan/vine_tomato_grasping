@@ -1,15 +1,12 @@
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python2
 """
 Created on Fri May 22 12:04:59 2020
 
 @author: taeke
 """
+import os
 
-## imports ##
-import os  # os.sep
-import cv2
-
-# custom functions
+# Flex vision imports
 from flex_vision.utils.util import plot_segments
 from flex_vision.utils.util import load_rgb
 from flex_vision.utils.util import make_dirs
@@ -17,9 +14,9 @@ from flex_vision.utils.util import make_dirs
 from flex_vision.detect_truss.segment_image import segment_truss
 from flex_vision.detect_truss.ProcessImage import ProcessImage
 
-# ls | cat -n | while read n f; do mv "$f" `printf "%03d.png" $n`; done
-if __name__ == '__main__':
 
+def main():
+    # ls | cat -n | while read n f; do mv "$f" `printf "%03d.png" $n`; done
     i_start = 1  # tomato file to load
     i_end = 2
     N = i_end - i_start
@@ -38,7 +35,7 @@ if __name__ == '__main__':
     process_image = ProcessImage(use_truss=True,
                                  pwd=pwd_results,
                                  save=save)
-    radii = [None] #  [1.5]  # 0.5, 1.0, 1.5, 2.0, 3.0
+    radii = [None]  # [1.5]  # 0.5, 1.0, 1.5, 2.0, 3.0
 
     for radius in radii:
         for count, i_tomato in enumerate(range(i_start, i_end)):
@@ -55,3 +52,7 @@ if __name__ == '__main__':
             process_image.filter_image(folder_name=str(radius))
             count = count + 1
             print("completed image %d out of %d" % (count, N))
+
+
+if __name__ == '__main__':
+    main()

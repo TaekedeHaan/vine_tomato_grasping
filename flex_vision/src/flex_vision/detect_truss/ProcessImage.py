@@ -1,14 +1,14 @@
 #!/usr/bin/env python2
-# -*- coding: utf-8 -*-
-
+import json
 import os
 import warnings
 
+# External imports
 import numpy as np
 import cv2
-import json
 from matplotlib import pyplot as plt
 
+# Flex vision imports
 from flex_vision.utils import imgpy
 from flex_vision.utils.geometry import Point2D, Transform, points_from_coords, coords_from_points
 from flex_vision.utils.timer import Timer
@@ -16,7 +16,6 @@ from flex_vision.utils.timer import Timer
 from flex_vision.utils.util import make_dirs, load_rgb, save_img, save_fig, figure_to_image
 from flex_vision.utils.util import stack_segments, change_brightness
 from flex_vision.utils.util import plot_timer, plot_grasp_location, plot_image, plot_features, plot_segments
-
 
 from filter_segments import filter_segments
 from detect_peduncle_2 import detect_peduncle, visualize_skeleton
@@ -194,7 +193,7 @@ class ProcessImage(object):
         y = bbox[1]  # rows to upper left corner
 
         translation = [x, y]
-        xy_shape = [self.shape[1], self.shape[0]] # [width, height]
+        xy_shape = [self.shape[1], self.shape[0]]  # [width, height]
         self.transform = Transform(self.ORIGINAL_FRAME_ID, self.LOCAL_FRAME_ID, xy_shape, angle=-angle,
                                    translation=translation)
 
@@ -303,7 +302,7 @@ class ProcessImage(object):
                 src_node_dist = branch['src_node_coord'].dist(branch['coords'])
                 dst_node_dist = branch['dst_node_coord'].dist(branch['coords'])
                 is_true = np.logical_and((np.array(dst_node_dist) > 0.5 * minimum_grasp_length_px), (
-                        np.array(src_node_dist) > 0.5 * minimum_grasp_length_px))
+                    np.array(src_node_dist) > 0.5 * minimum_grasp_length_px))
 
                 branch_points_keep = np.array(branch['coords'])[is_true].tolist()
                 points_keep.extend(branch_points_keep)
@@ -488,7 +487,7 @@ class ProcessImage(object):
 
         # generate peduncle image
         xy_peduncle = coords_from_points(self.peduncle_points, frame_id)
-        rc_peduncle = np.around(np.array(xy_peduncle)).astype(np.int)[:,(1, 0)]
+        rc_peduncle = np.around(np.array(xy_peduncle)).astype(np.int)[:, (1, 0)]
         arr = np.zeros(shape, dtype=np.uint8)
         arr[rc_peduncle[:, 0], rc_peduncle[:, 1]] = 1
 
@@ -520,8 +519,8 @@ class ProcessImage(object):
 
     def get_segments(self, local=False):
         if local:
-            tomato = self.tomato_crop # self.crop(self.tomato)
-            peduncle = self.peduncle_crop # self.crop(self.peduncle)
+            tomato = self.tomato_crop  # self.crop(self.tomato)
+            peduncle = self.peduncle_crop  # self.crop(self.peduncle)
             background = self.crop(self.background)
         else:
             tomato = self.tomato
@@ -620,7 +619,7 @@ def main():
     save = False
     drive = "backup"  # "UBUNTU 16_0"  #
 
-    pwd_root = os.path.join(os.sep, "media" ,"taeke", "backup", "thesis_data", "detect_truss")
+    pwd_root = os.path.join(os.sep, "media", "taeke", "backup", "thesis_data", "detect_truss")
 
     dataset = "lidl"  # "failures" #
     pwd_data = os.path.join(pwd_root, "data", dataset)
@@ -654,7 +653,7 @@ def main():
         with open(pwd_json_file, "w") as write_file:
             json.dump(json_data, write_file)
 
-    if False: # True:  # save is not True:
+    if False:  # True:  # save is not True:
         plot_timer(Timer.timers['main'].copy(), threshold=0.02, pwd=pwd_results, name='main', title='Processing time',
                    startangle=-20)
 

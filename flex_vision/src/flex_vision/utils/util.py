@@ -4,18 +4,19 @@ Created on Fri Feb 14 21:21:28 2020
 
 @author: taeke
 """
-
 import os
+
+# External imports
+import copy
 import cv2
+import matplotlib as mpl
 import numpy as np
 import warnings
-import copy
 from matplotlib import pyplot as plt
-import matplotlib as mpl
-
-from flex_vision.utils import color_maps
-import matplotlib.gridspec as gridspec
 from matplotlib.backends.backend_agg import FigureCanvasAgg
+
+# Flex vision imports
+from flex_vision.utils import color_maps
 
 ee_color = (255, 150, 0)
 grasp_color = (200, 0, 150)
@@ -41,7 +42,7 @@ LINEWIDTH = 3.4  # inch
 # IEEE standards for black and white line art are >600dpi.
 DPI = 600
 
-#Options
+# Options
 params = {'text.usetex': True,
           'font.size': 10,        # controls default text sizes
           # 'legend.fontsize': 10,    # fontsize of the legend
@@ -54,6 +55,7 @@ params = {'text.usetex': True,
           # 'pdf.fonttype': 42  # https://jdhao.github.io/2018/01/18/mpl-plotting-notes-201801/
           }
 plt.rcParams.update(params)
+
 
 def make_dirs(pwd):
     if not os.path.isdir(pwd):
@@ -113,6 +115,7 @@ def change_brightness(img, brightness):
     else:
         print 'I can not do anything with a brightness value of ', brightness, '!'
         return img
+
 
 def change_color_brightness(color, brightness):
     color = np.array(color)
@@ -273,7 +276,7 @@ def save_fig(fig, pwd, name, dpi=None, no_ticks=True, ext=None):
         ext = EXT
 
     if dpi is None:
-        dpi =DPI
+        dpi = DPI
 
     # eps does not support transparancy
     # plt.rcParams["savefig.format"] = ext
@@ -294,7 +297,7 @@ def save_fig(fig, pwd, name, dpi=None, no_ticks=True, ext=None):
 
     # make dir if it does not yet exist
     make_dirs(pwd)
-    fig.savefig(os.path.join(pwd, name + '.' + ext), dpi=dpi) #, bbox_inches='tight', pad_inches=0)
+    fig.savefig(os.path.join(pwd, name + '.' + ext), dpi=dpi)  # , bbox_inches='tight', pad_inches=0)
     plt.close(fig)
 
 
@@ -355,6 +358,7 @@ def plot_image(img, show_axis=False, animated=False, nrows=1, ncols=1):
     if not show_axis:
         clear_axis()
 
+
 def clear_axis():
     plt.tight_layout()
     plt.axis('off')
@@ -376,7 +380,8 @@ def plot_truss(img_rgb=None, tomato=None, peduncle=None):
         add_circles(tomato['centers'], radii=tomato['radii'], fc=tomato_color, ec=tomato_color)
 
     if peduncle:
-        add_lines(peduncle['centers'], peduncle['angles'], lengths=peduncle['length'], color=peduncle_color, linewidth=20)
+        add_lines(peduncle['centers'], peduncle['angles'],
+                  lengths=peduncle['length'], color=peduncle_color, linewidth=20)
 
 
 def plot_features(img_rgb=None, tomato=None, peduncle=None, grasp=None,
@@ -565,25 +570,23 @@ def plot_grasp_location(loc, angle, finger_width=20, finger_thickness=10, finger
         left_origin = loc
         right_origin = loc
 
-
     R = np.array([[np.cos(rot_angle), -np.sin(rot_angle)], [np.sin(rot_angle), np.cos(rot_angle)]])
 
     xy = np.array([[-finger_thickness], [-finger_width/2]])
-    xy_rot = np.matmul(R, xy) + np.expand_dims(left_origin, axis = 1)
+    xy_rot = np.matmul(R, xy) + np.expand_dims(left_origin, axis=1)
 
     add_rectangle(xy_rot, finger_thickness, finger_width, angle=np.rad2deg(rot_angle), ec=ee_color,
                   fc=ee_color, alpha=0.4, linewidth=linewidth, zorder=middle_layer)
 
     if finger_dist is not None:
         add_rectangle(xy_rot, 2*finger_thickness + finger_dist, finger_width, angle=np.rad2deg(rot_angle), ec=grasp_color,
-                  fc=grasp_color, alpha=0.4, linewidth=linewidth, linestyle='-', zorder=bottom_layer)
+                      fc=grasp_color, alpha=0.4, linewidth=linewidth, linestyle='-', zorder=bottom_layer)
 
     xy = np.array([[0], [-finger_width/2]])
     xy_rot = np.matmul(R, xy) + np.expand_dims(right_origin, axis=1)
 
     add_rectangle(xy_rot, finger_thickness, finger_width, angle=np.rad2deg(rot_angle), ec=ee_color,
                   fc=ee_color, alpha=0.4, linewidth=linewidth, zorder=middle_layer)
-
 
     if pwd is not None:
         save_fig(plt.gcf(), pwd, name, title=title)
@@ -829,7 +832,7 @@ def add_circles(centers, radii=5, fc=(255, 255, 255), ec=(0, 0, 0), linewidth=1,
 
     for center, radius in zip(centers, radii):
         circle = mpl.patches.Circle(center, radius, ec=ec, fc=fc, fill=True, linewidth=linewidth,
-                                           linestyle=linestyle, zorder=zorder)
+                                    linestyle=linestyle, zorder=zorder)
 
         ax = plt.gca()
         artist = ax.add_artist(circle)
@@ -838,6 +841,7 @@ def add_circles(centers, radii=5, fc=(255, 255, 255), ec=(0, 0, 0), linewidth=1,
         save_fig(plt.gcf(), pwd, name, title="", titleSize=20)
 
     return artist
+
 
 def add_contour(mask, color=(255, 255, 255), linewidth=1, zorder=None):
     if zorder is None:
@@ -911,7 +915,7 @@ def add_arrows(centers, angles, lengths=20, color=(255, 255, 255), linewidth=1, 
 
 
 def add_rectangle(xy, width, height, angle=0, fc=(255, 255, 255), ec=(0, 0, 0), linewidth=1, alpha=1.0, linestyle='-', zorder=None,
-                pwd=None, name=None, title=""):
+                  pwd=None, name=None, title=""):
 
     if zorder is None:
         zorder = middle_layer

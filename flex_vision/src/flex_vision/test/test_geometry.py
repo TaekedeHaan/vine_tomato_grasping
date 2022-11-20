@@ -1,5 +1,10 @@
+#!/usr/bin/env python2
 import unittest
+
+# External imports
 import numpy as np
+
+# Flex vision imports
 from flex_vision.utils.geometry import Point2D, Transform, MissingTransformError, LengthMismatchError
 
 
@@ -85,7 +90,6 @@ class TransformTests(unittest.TestCase):
             point2 = Point2D(coord1, 'local', transform)
 
             np.testing.assert_almost_equal(point1.get_coord('origin'), point2.get_coord('origin'))
-
 
     def test_missing_transform(self):
         """

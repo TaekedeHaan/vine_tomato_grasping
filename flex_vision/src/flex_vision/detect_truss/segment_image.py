@@ -1,31 +1,26 @@
-# -*- coding: utf-8 -*-
 """
 Created on Wed May 20 13:32:31 2020
 
 @author: taeke
 """
-
-## imports ##
+# External imports
 import cv2
-import numpy as np
-import os
-
-from matplotlib import pyplot as plt
-from matplotlib import cm
 import matplotlib as mpl
-import settings
-
+import numpy as np
+from matplotlib import pyplot as plt
 from sklearn.metrics.pairwise import euclidean_distances
 
-# custom functions
+# Flex vision imports
+import settings
 from flex_vision.utils.util import bin2img
 from flex_vision.utils.util import save_fig
 from flex_vision.utils.util import angular_difference
 from flex_vision.utils.util import plot_segments
 from flex_vision.utils.util import grey_2_rgb
 
-final_image_id = '015' # used for plotting
+final_image_id = '015'  # used for plotting
 LINEWIDTH = 3.4  # inch
+
 
 def k_means_hue(img_hue, n_clusters, centers=None):
     # convert hue value to angles, and place on unit circle
@@ -96,7 +91,6 @@ def k_means_hue_a(img_hue, img_a, n_clusters, my_settings, centers=None):
     return centers_out, labels
 
 
-
 def assign_labels(img_hue, centers_dict, hue_radius=1.0, img_a=None):
     data_angle = np.deg2rad(2 * np.float32(img_hue.flatten()))  # [rad]
     data = np.stack((hue_radius * np.cos(data_angle), hue_radius * np.sin(data_angle)), axis=1)
@@ -113,12 +107,14 @@ def assign_labels(img_hue, centers_dict, hue_radius=1.0, img_a=None):
     labels = np.argmin(dist, axis=1)
     return labels
 
+
 def normalize_image(img):
     """Normalizes image into the interval [-1, 1]"""
     val_min = np.min(img)
     val_max = np.max(img)
     img_norm = np.float32(img - val_min) / np.float32(val_max - val_min) * 2 - 1
     return img_norm
+
 
 def segment_truss(img_hue, img_a=None, save="False", name="", pwd="", my_settings=None):
     if my_settings is None:
@@ -204,7 +200,7 @@ def hue_hist(img_hue, centers, lbl, name, pwd):
     radii, bins, patches = ax.hist(angle, bins=bins, range=(0, 360), color="black", lw=0)
     ax.set_xlabel("hue [$^\circ$]")
     ax.set_ylabel("frequency")
-    save_fig(fig, pwd, name + "_hue_hist") # , titleSize=10
+    save_fig(fig, pwd, name + "_hue_hist")  # , titleSize=10
 
 
 def a_hist(img_a, centers, lbl, bins=80, a_min=-1.0, a_max=1.0, name="", pwd=""):
@@ -234,7 +230,7 @@ def a_hist(img_a, centers, lbl, bins=80, a_min=-1.0, a_max=1.0, name="", pwd="")
     radii, bins, patches = ax.hist(angle, bins=bins, range=(a_min, a_max), color="black", lw=0)
     ax.set_xlabel("a")
     ax.set_ylabel("frequency")
-    save_fig(fig, pwd, name + "_a_hist") # , titleSize=10
+    save_fig(fig, pwd, name + "_a_hist")  # , titleSize=10
 
 
 def both_hist(img_hue, img_a, centers, lbl, a_bins=80, pwd="", name="", hue_min=0, hue_max=180, hue_radius=1.0,
@@ -325,6 +321,7 @@ def both_hist(img_hue, img_a, centers, lbl, a_bins=80, pwd="", name="", hue_min=
 
     save_fig(plt.gcf(), pwd, name + "_hist", no_ticks=False)
     # plt.savefig(os.path.join(pwd, name + "_hist" + '.png'))
+
 
 def label2img(labels, label, dim):
     data = labels.ravel() == label

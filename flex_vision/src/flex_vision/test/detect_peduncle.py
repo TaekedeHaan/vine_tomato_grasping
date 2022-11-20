@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python2
 """
 Created on Thu Jul 16 18:16:42 2020
 
@@ -23,7 +23,7 @@ def main():
 
     save = True
 
-    drive = "backup" #  "UBUNTU 16_0" #
+    drive = "backup"  # "UBUNTU 16_0" #
     pwd_root = os.path.join(os.sep, "media", "taeke", drive, "thesis_data", "detect_truss")
 
     dataset = 'lidl'

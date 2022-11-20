@@ -1,23 +1,26 @@
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python2
 """
 Created on Mon Jul 27 13:49:44 2020
 
 @author: taeke
 """
-
 import os
-from src.detect_truss.util import load_rgb
+
+# External imports
 import cv2
 
+# Flex vision imports
+from src.detect_truss.util import load_rgb
 
-pwd_current = os.path.dirname(__file__) # path to THIS file
+
+pwd_current = os.path.dirname(__file__)  # path to THIS file
 data_set = 'real_blue'
 pwd_data = os.path.join(pwd_current, 'data', data_set)
 
 
 # load image
 file_name = '001.png'
-img_rgb = load_rgb(pwd_data, file_name, horizontal = True)
+img_rgb = load_rgb(pwd_data, file_name, horizontal=True)
 
 
 # check contents folder
@@ -31,10 +34,10 @@ else:
     file_name = contents[-1]
     file_id = file_name[:3]
     new_id = int(file_id) + 1
-    
+
 new_file_name = str(new_id).zfill(3) + '.png'
 new_file_path = os.path.join(pwd_data, new_file_name)
-    
+
 result = cv2.imwrite(new_file_path, img_rgb)
 if result is True:
     print('File saved successfully')

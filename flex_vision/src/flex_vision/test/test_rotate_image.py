@@ -1,5 +1,4 @@
 #!/usr/bin/env python2
-# -*- coding: utf-8 -*-
 """
 Created on Mon Feb 17 14:35:14 2020
 
@@ -9,6 +8,7 @@ Created on Mon Feb 17 14:35:14 2020
 import numpy as np
 from matplotlib import pyplot as plt
 from flex_vision.utils.geometry import Transform, Point2D
+
 
 def main():
     # %% INIT

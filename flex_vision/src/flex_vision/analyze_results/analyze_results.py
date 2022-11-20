@@ -1,21 +1,23 @@
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python2
 """
 Created on Mon Jul 20 14:22:48 2020
 
 @author: taeke
 """
-
 import os
 import json
-import numpy as np
-from flex_vision.utils.util import load_rgb, plot_features, plot_error, make_dirs, plot_features_result, save_fig
-from flex_vision.detect_truss.detect_tomato import compute_com
-from sklearn.metrics.pairwise import euclidean_distances as euclidean_distance_matrix
+
+# External imports
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import seaborn as sns
+import numpy as np
 import scipy.stats as stats
+import seaborn as sns
+from sklearn.metrics.pairwise import euclidean_distances as euclidean_distance_matrix
 
+# Flex vision imports
+from flex_vision.detect_truss.detect_tomato import compute_com
+from flex_vision.utils.util import load_rgb, plot_features, plot_error, make_dirs, plot_features_result, save_fig
 
 
 def box_plot(vals, labels, save_path, ext='png', name="error_box_plot"):
@@ -62,13 +64,15 @@ def box_plot(vals, labels, save_path, ext='png', name="error_box_plot"):
             if outlier in val:
                 outlier_i = val.index(outlier)
                 to_plot.remove(outlier_i)
-                plt.scatter(outlier, x[outlier_i], s=15, facecolors="None", edgecolors=edge_color, linewidths=.6)  # i + 1
+                plt.scatter(outlier, x[outlier_i], s=15, facecolors="None",
+                            edgecolors=edge_color, linewidths=.6)  # i + 1
 
         ax.scatter(np.array(val)[to_plot], np.array(x)[to_plot], s=25, color=face_color, edgecolors=edge_color,
-                    linewidths=0)
+                   linewidths=0)
 
     fig.savefig(os.path.join(save_path, name + '.' + ext), dpi=600, bbox_inches='tight', pad_inches=0)  # format=ext
     plt.close(fig)
+
 
 def dist_plot(vals, labels, save_path, ext='png', name="error_dist_plot"):
     vals.reverse()
@@ -120,16 +124,17 @@ def dist_plot(vals, labels, save_path, ext='png', name="error_dist_plot"):
         face_color = mpl.colors.colorConverter.to_rgba(c, alpha=.1)
         edge_color = mpl.colors.colorConverter.to_rgba(c, alpha=.5)
         to_plot = range(0, len(val))
-        outliers = [] # box_info["fliers"][i].get_data()[0]
+        outliers = []  # box_info["fliers"][i].get_data()[0]
 
         for outlier in outliers:
             if outlier in val:
                 outlier_i = val.index(outlier)
                 to_plot.remove(outlier_i)
-                plt.scatter(outlier, x[outlier_i], s=10, facecolors="None", edgecolors=edge_color, linewidths=1)  # i + 1
+                plt.scatter(outlier, x[outlier_i], s=10, facecolors="None",
+                            edgecolors=edge_color, linewidths=1)  # i + 1
 
         ax.scatter(np.array(val)[to_plot], np.array(x)[to_plot], s=25, color=face_color, edgecolors=edge_color,
-                    linewidths=0)
+                   linewidths=0)
 
     fig.savefig(os.path.join(save_path, name + '.' + ext), dpi=600, bbox_inches='tight', pad_inches=0)
 
@@ -326,7 +331,8 @@ def main():
         if save_results:
             plot_features(img_rgb, tomato=tomato_lbl, pwd=pwd_store, file_name=truss_name + '_tom_lbl')
             plot_features(img_rgb, peduncle=peduncle_lbl, pwd=pwd_store, file_name=truss_name + '_pend_lbl')
-            plot_features(img_rgb, tomato=tomato_lbl, peduncle=peduncle_lbl, pwd=pwd_store, file_name=truss_name + '_lbl')
+            plot_features(img_rgb, tomato=tomato_lbl, peduncle=peduncle_lbl,
+                          pwd=pwd_store, file_name=truss_name + '_lbl')
 
         with open(file_res, "r") as read_file:
             data_results = json.load(read_file)
@@ -364,8 +370,10 @@ def main():
         n_predict_pos = len(tomato_pred['true_pos']['centers'])
 
         com_error = euclidean_distance(tomato_lbl['com'][0], tomato_res['com']) / px_per_mm
-        centers_error = euclidean_distances(tomato_actual['true_pos']['centers'], tomato_pred['true_pos']['centers'], factor=1/px_per_mm)
-        radii_error = [abs(r1-r2)/px_per_mm for r1, r2 in zip(tomato_actual['true_pos']['radii'], tomato_pred['true_pos']['radii'])]
+        centers_error = euclidean_distances(
+            tomato_actual['true_pos']['centers'], tomato_pred['true_pos']['centers'], factor=1/px_per_mm)
+        radii_error = [abs(r1-r2)/px_per_mm for r1, r2 in zip(tomato_actual['true_pos']
+                                                              ['radii'], tomato_pred['true_pos']['radii'])]
 
         # compute error
         tomato_error = {'radii': radii_error, 'centers': centers_error, 'com': com_error, 'n_true_pos': n_true_pos,
@@ -411,7 +419,7 @@ def main():
         n_predict_pos = len(peduncle_res['junctions'])
 
         center_error = euclidean_distances(junction_actual['true_pos']['centers'], junction_pred['true_pos']['centers'],
-                                            factor=1.0/px_per_mm)
+                                           factor=1.0/px_per_mm)
 
         junctions_error = {'centers': center_error, 'true_pos': n_true_pos, 'false_pos': n_false_pos, 'labeled_pos': n_labeled_pos,
                            'predict_pos': n_predict_pos}
@@ -484,7 +492,7 @@ def main():
     cases = ['all', 'center', 'off-center']
 
     # Junctions https://stackoverflow.com/questions/22307628/python-how-to-extend-the-content-of-a-list-store-in-a-dict
-    junction_error_centers = {k:[] for k in cases}
+    junction_error_centers = {k: [] for k in cases}
     n_true_pos = dict.fromkeys(cases, 0)
     n_false_pos = dict.fromkeys(cases, 0)
     n_labeled_pos = dict.fromkeys(cases, 0)
@@ -513,7 +521,8 @@ def main():
             n_predict_pos[key] += junction_error_all[id]['predict_pos']
 
     labels = ['tomtato\n center', 'tomato\n radius', 'center of\n mass', 'junction\n location']
-    vals = [tomato_error_centers, tomato_error_radii, tomato_error_com, remove_none_from_list(junction_error_centers['all'])]
+    vals = [tomato_error_centers, tomato_error_radii, tomato_error_com,
+            remove_none_from_list(junction_error_centers['all'])]
     box_plot(vals, labels, pwd_final_result, ext='png')
     dist_plot(vals, labels, pwd_final_result, ext='png')
 
@@ -539,6 +548,7 @@ def main():
             print 'False positive: {false_pos:d} out of {n_junct_predict:d} ({false_pos_perc:d}%)'.format(false_pos=n_false_pos[key],
                                                                                                           n_junct_predict=n_predict_pos[key],
                                                                                                           false_pos_perc=false_pos_perc)
+
 
 if __name__ == '__main__':
     main()

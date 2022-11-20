@@ -1,3 +1,4 @@
+# External imports
 import numpy as np
 
 
@@ -152,13 +153,14 @@ class Transform(object):
 
 class MissingTransformError(Exception):
     """Exception raised for errors in the input."""
+
     def __init__(self, transform=None, from_frame=None, to_frame=None):
         self.transform = transform
         self.from_frame = from_frame
         self.to_frame = to_frame
 
     def __str__(self):
-        if (self.transform is None) and (self.from_frame is not None) and (self.to_frame is not None) :
+        if (self.transform is None) and (self.from_frame is not None) and (self.to_frame is not None):
             return "Cannot transform from " + self.from_frame + " frame to " + self.to_frame + " frame, transform is empty!"
         elif self.transform is None:
             return "Cannot transform, transform is empty!"
@@ -168,6 +170,7 @@ class MissingTransformError(Exception):
 
 class LengthMismatchError(Exception):
     """Exception raised for errors in the input."""
+
     def __init__(self, given_length=None, desired_length=None):
         self.given_length = given_length
         self.desired_length = desired_length

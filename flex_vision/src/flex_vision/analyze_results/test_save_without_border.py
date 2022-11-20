@@ -1,5 +1,8 @@
+#!/usr/bin/env python2
+# External imports
 import numpy as np
 import matplotlib.pyplot as plt
+
 
 def save_image(data, filename):
     sizes = np.shape(data)
@@ -18,8 +21,9 @@ def save_image(data, filename):
     plt.gca().xaxis.set_major_locator(plt.NullLocator())
     plt.gca().yaxis.set_major_locator(plt.NullLocator())
 
-    plt.savefig(filename, dpi=sizes[0], cmap='hot') #  , bbox_inches='tight', pad_inches=0)
+    plt.savefig(filename, dpi=sizes[0], cmap='hot')  # , bbox_inches='tight', pad_inches=0)
     plt.close()
+
 
 def main():
     data = np.random.randint(0, 100, (256, 256*2))

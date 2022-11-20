@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python2
 """
 Created on Fri Aug  7 12:16:30 2020
 
@@ -12,7 +12,7 @@ import cv2
 import numpy as np
 import os
 
-plt.rcParams["savefig.bbox"] = 'tight' 
+plt.rcParams["savefig.bbox"] = 'tight'
 plt.rcParams['axes.titlesize'] = 20
 
 drive = "backup"
@@ -23,7 +23,7 @@ fig = plt.figure(figsize=(0.1, 2.5))
 dist_min = 0.5
 dist_max = 0.7
 n = 3
-ticks = np.linspace(dist_min,dist_max,n)
+ticks = np.linspace(dist_min, dist_max, n)
 cmap = mpl.cm.jet_r
 norm = mpl.colors.Normalize(vmin=dist_min, vmax=dist_max)
 sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)

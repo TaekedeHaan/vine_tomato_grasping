@@ -1,7 +1,11 @@
+# External imports
 import cv2
 import numpy as np
+
+# Flex vision imports
 from segment_image import normalize_image, label2img, a_hist
 from sklearn.metrics.pairwise import euclidean_distances
+
 
 def segment_truss(img_a, img_b, save="False", name="", pwd="", settings=None):
     if settings is None:
@@ -44,14 +48,15 @@ def segment_truss(img_a, img_b, save="False", name="", pwd="", settings=None):
     peduncle = label2img(labels, lbl["peduncle"], dim)
     background = label2img(labels, lbl["background"], dim)
     if save:
-    #     both_hist(img_hue, img_a_norm, centers, lbl, a_bins=a_max - a_min + 1, pwd=pwd, name=name,
-    #               hue_radius=settings['hue_radius'])
-    #     hue_hist(img_hue, np.rad2deg(centers['hue']), lbl, name, pwd)
-    #     if img_a is not None:
+        #     both_hist(img_hue, img_a_norm, centers, lbl, a_bins=a_max - a_min + 1, pwd=pwd, name=name,
+        #               hue_radius=settings['hue_radius'])
+        #     hue_hist(img_hue, np.rad2deg(centers['hue']), lbl, name, pwd)
+        #     if img_a is not None:
         a_hist(img_a_norm, centers['a'], lbl, bins=a_max - a_min + 1, name=name, pwd=pwd)
         a_hist(img_b_norm, centers['b'], lbl, bins=b_max - b_min + 1, name=name + '_b', pwd=pwd)
 
     return background, tomato, peduncle
+
 
 def k_means_lab(img_a, img_b, n_clusters, settings, centers=None):
     # convert hue value to angles, and place on unit circle
@@ -90,6 +95,7 @@ def k_means_lab(img_a, img_b, n_clusters, settings, centers=None):
     centers_out['a'] = centers_xy[:, 0]
     centers_out['b'] = centers_xy[:, 1]
     return centers_out, labels
+
 
 def assign_labels_lab(img_a, img_b, centers_dict):
     """Assign labels based on centers"""
