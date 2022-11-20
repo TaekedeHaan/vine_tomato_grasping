@@ -7,11 +7,8 @@ Created on Fri May 22 12:04:59 2020
 import os
 
 # Flex vision imports
-from flex_vision.utils.util import plot_segments
 from flex_vision.utils.util import load_rgb
 from flex_vision.utils.util import make_dirs
-
-from flex_vision.detect_truss.segment_image import segment_truss
 from flex_vision.detect_truss.ProcessImage import ProcessImage
 
 

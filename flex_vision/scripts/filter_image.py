@@ -4,17 +4,17 @@ Created on Wed Feb 26 17:05:38 2020
 
 @author: taeke
 """
-import os  # os.sep
-import time
+import os
 
 # Flex vision imports
-from detect_crop.util import plot_segments
-from detect_crop.util import make_dirs
-from detect_crop.util import load_rgb
-from detect_crop.filter_segments import filter_segments
-from detect_crop.ProcessImage import ProcessImage
+from flex_vision.utils.util import plot_segments
+from flex_vision.utils.util import make_dirs
+from flex_vision.utils.util import load_rgb
+from flex_vision.detect_truss.filter_segments import filter_segments
+from flex_vision.detect_truss.ProcessImage import ProcessImage
 
-if __name__ == '__main__':
+
+def main():
     pwd_current = os.path.dirname(__file__)
     dataset = "real_blue"
     imMax = 255
@@ -54,17 +54,20 @@ if __name__ == '__main__':
 
         print("completed image %d out of %d" % (count, N))
 
+    #        segmentsRGB = stack_segments(img_rgb, background_f, tomato_f, peduncle_f)
+    #        save_img(segmentsRGB, pwd_results, tomato_name + '_2')
 
-#        segmentsRGB = stack_segments(img_rgb, background_f, tomato_f, peduncle_f)
-#        save_img(segmentsRGB, pwd_results, tomato_name + '_2')
+    #        H = DIM[0]
+    #        W = DIM[1]
+    #
+    #        # Cropping, only works for this specific image!
+    #        h = int(H/2)
+    #        w = int(W/2)
+    #
+    #        row = int(H/6)
+    #        col = int(W/3)
+    #        imRGB = imRGB[row:row + h, col:col + w]
 
-#        H = DIM[0]
-#        W = DIM[1]
-#
-#        # Cropping, only works for this specific image!
-#        h = int(H/2)
-#        w = int(W/2)
-#
-#        row = int(H/6)
-#        col = int(W/3)
-#        imRGB = imRGB[row:row + h, col:col + w]
+
+if __name__ == '__main__':
+    main()

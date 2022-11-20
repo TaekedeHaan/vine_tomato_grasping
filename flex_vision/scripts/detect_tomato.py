@@ -5,21 +5,19 @@ Created on Thu Jul 16 19:49:14 2020
 @author: taeke
 """
 import os
-import time
 
 # External imports
 import cv2
 
 # Flex vision imports
-from src.detect_truss.util import change_brightness
-from src.detect_truss.util import make_dirs, load_rgb
-from src.detect_truss.ProcessImage import ProcessImage
-from src.detect_truss.detect_tomato import detect_tomato, set_detect_tomato_settings
+from flex_vision.utils.util import change_brightness
+from flex_vision.utils.util import make_dirs, load_rgb
+from flex_vision.detect_truss import settings
+from flex_vision.detect_truss.ProcessImage import ProcessImage
+from flex_vision.detect_truss.detect_tomato import detect_tomato
 
-if __name__ == '__main__':
 
-    # %% init
-
+def main():
     i_start = 1
     i_end = 22
     N = i_end - i_start + 1
@@ -59,7 +57,7 @@ if __name__ == '__main__':
         image.rotate_cut_img()
 
         # set parameters
-        settings = set_detect_tomato_settings()
+        settings = settings.detect_tomato()
 
         img_rgb = image.get_rgb(local=True)
         img_rgb_bright = change_brightness(img_rgb, brightness)
@@ -73,3 +71,7 @@ if __name__ == '__main__':
                                             save=True,
                                             pwd=pwd_results,
                                             name=tomato_name)
+
+
+if __name__ == '__main__':
+    main()
