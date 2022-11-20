@@ -13,9 +13,9 @@ from flex_vision.utils import imgpy
 from flex_vision.utils.geometry import Point2D, Transform, points_from_coords, coords_from_points
 from flex_vision.utils.timer import Timer
 
-from flex_vision.utils.util import make_dirs, load_rgb, save_img, save_fig, figure_to_image
+from flex_vision.utils.util import save_img, save_fig, figure_to_image
 from flex_vision.utils.util import stack_segments, change_brightness
-from flex_vision.utils.util import plot_timer, plot_grasp_location, plot_image, plot_features, plot_segments
+from flex_vision.utils.util import plot_grasp_location, plot_image, plot_features, plot_segments
 
 from filter_segments import filter_segments
 from detect_peduncle_2 import detect_peduncle, visualize_skeleton
@@ -609,86 +609,3 @@ def load_px_per_mm(pwd, img_id):
         data_inf = json.load(read_file)
 
     return data_inf['px_per_mm']
-
-
-def main():
-    i_start = 1
-    i_end = 85
-    N = i_end - i_start
-
-    save = False
-    drive = "backup"  # "UBUNTU 16_0"  #
-
-    pwd_root = os.path.join(os.sep, "media", "taeke", "backup", "thesis_data", "detect_truss")
-
-    dataset = "lidl"  # "failures" #
-    pwd_data = os.path.join(pwd_root, "data", dataset)
-    pwd_results = os.path.join(pwd_root, "results", dataset)
-    pwd_json = os.path.join(pwd_results, 'json')
-
-    make_dirs(pwd_results)
-    make_dirs(pwd_json)
-
-    process_image = ProcessImage(use_truss=True,
-                                 pwd=pwd_results,
-                                 save=save)
-
-    for count, i_tomato in enumerate(range(i_start, i_end)):
-        print("Analyzing image ID %d (%d/%d)" % (i_tomato, count + 1, N))
-
-        tomato_name = str(i_tomato).zfill(3)
-        file_name = tomato_name + "_rgb" + ".png"
-
-        rgb_data = load_rgb(file_name, pwd=pwd_data, horizontal=True)
-        px_per_mm = load_px_per_mm(pwd_data, tomato_name)
-        process_image.add_image(rgb_data, px_per_mm=px_per_mm, name=tomato_name)
-
-        success = process_image.process_image()
-        process_image.get_truss_visualization(local=True, save=True)
-        process_image.get_truss_visualization(local=False, save=True)
-
-        json_data = process_image.get_object_features()
-
-        pwd_json_file = os.path.join(pwd_json, tomato_name + '.json')
-        with open(pwd_json_file, "w") as write_file:
-            json.dump(json_data, write_file)
-
-    if False:  # True:  # save is not True:
-        plot_timer(Timer.timers['main'].copy(), threshold=0.02, pwd=pwd_results, name='main', title='Processing time',
-                   startangle=-20)
-
-    total_pixels = process_image.background_pixels + process_image.tomato_pixels + process_image.stem_pixels
-    print(float(process_image.background_pixels)/total_pixels)
-    print(float(process_image.tomato_pixels) / total_pixels)
-    print(float(process_image.stem_pixels) / total_pixels)
-
-    total_key = "process image"
-    time_tot_mean = np.mean(Timer.timers[total_key]) / 1000
-    time_tot_std = np.std(Timer.timers[total_key]) / 1000
-
-    time_ms = Timer.timers[total_key]
-    time_s = [x / 1000 for x in time_ms]
-
-    time_min = min(time_s)
-    time_max = max(time_s)
-
-    print 'Processing time: {mean:.2f}s +- {std:.2f}s (n = {n:d})'.format(mean=time_tot_mean, std=time_tot_std, n=N)
-    print 'Processing time lies between {time_min:.2f}s and {time_max:.2f}s (n = {n:d})'.format(time_min=time_min,
-                                                                                                time_max=time_max, n=N)
-
-    width = 0.5
-    fig, ax = plt.subplots()
-
-    ax.p1 = plt.bar(np.arange(i_start, i_end), time_s, width)
-
-    plt.ylabel('time [s]')
-    plt.xlabel('image ID')
-    plt.title('Processing time per image')
-    plt.rcParams["savefig.format"] = 'pdf'
-
-    fig.show()
-    fig.savefig(os.path.join(pwd_results, 'time_bar'), dpi=300)  # , bbox_inches='tight', pad_inches=0)
-
-
-if __name__ == '__main__':
-    main()

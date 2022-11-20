@@ -55,7 +55,6 @@ def main():
 
     print 'predicted features, centers: ', centers_prediction, ' radii: ', radii_prediction
     print 'actual features, centers: ', centers_label, ' radii: ', radii_label
-    np.testing.assert_almost_equal(0, 0)
 
 
 def generate_truss_features(truss_center, radii_range, angle_deg=30):
