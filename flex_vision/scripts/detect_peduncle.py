@@ -7,7 +7,7 @@ Created on Thu Jul 16 18:16:42 2020
 import os
 
 # Flex vision imports
-from flex_vision.utils.util import make_dirs, load_rgb
+from flex_vision.utils.util import create_directory, load_image
 from flex_vision.detect_truss.ProcessImage import ProcessImage
 
 
@@ -26,17 +26,15 @@ def main():
 
     pwd_data = os.path.join(pwd_root, "data", dataset)
     pwd_results = os.path.join(pwd_root, "results", dataset, "06_peduncle")
-    make_dirs(pwd_results)
+    create_directory(pwd_results)
 
-    brightness = 0.9
-
-    for count, i_tomato in enumerate(range(i_start, i_end)):  # 10, 11
+    for count, i_tomato in enumerate(range(i_start, i_end)):
         print("Analyzing image %d out of %d" % (i_tomato, N))
 
         tomato_name = str(i_tomato).zfill(nDigits)
         file_name = tomato_name + ".png"
 
-        img_rgb = load_rgb(file_name, pwd_data, horizontal=True)
+        img_rgb = load_image(os.path.join(pwd_data, file_name), horizontal=True)
 
         image = ProcessImage(use_truss=True,
                              name=tomato_name,

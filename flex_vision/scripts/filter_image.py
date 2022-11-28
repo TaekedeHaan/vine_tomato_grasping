@@ -8,8 +8,8 @@ import os
 
 # Flex vision imports
 from flex_vision.utils.util import plot_segments
-from flex_vision.utils.util import make_dirs
-from flex_vision.utils.util import load_rgb
+from flex_vision.utils.util import create_directory
+from flex_vision.utils.util import load_image
 from flex_vision.detect_truss.filter_segments import filter_segments
 from flex_vision.detect_truss.ProcessImage import ProcessImage
 
@@ -26,14 +26,14 @@ def main():
     pwd_results = os.path.join(pwd_current, "results", dataset, "morphological")
 
     # create folder if required
-    make_dirs(pwd_results)
+    create_directory(pwd_results)
 
     for count, i_tomato in enumerate(range(1, N)):
 
         tomato_name = str(i_tomato).zfill(nDigits)
         file_name = tomato_name + ".png"
 
-        img_rgb = load_rgb(pwd_data, file_name, horizontal=True)
+        img_rgb = load_image(os.path.join(pwd_data, file_name), horizontal=True)
 
         image = ProcessImage(use_truss=True,
                              name=tomato_name,

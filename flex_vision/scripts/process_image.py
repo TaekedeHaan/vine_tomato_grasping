@@ -17,21 +17,22 @@ from flex_vision.utils.timer import Timer
 def main():
     parser = argparse.ArgumentParser(prog="process_image.py", description="Process images")
     parser.add_argument("--plot_timer", help="Plot the timer after processing", action="store_true")
+    parser.add_argument("--save", help="Save the results of all the steps individually", action="store_true")
 
     args = parser.parse_args()
     plot_timer = args.plot_timer
+    save = True
 
     i_start = 3
     i_end = 4
     N = i_end - i_start
 
-    save = False
     pwd_data = constants.PATH_DATA
     pwd_results = constants.PATH_RESULTS
     pwd_json = constants.PATH_JSON
 
-    util.make_dirs(pwd_results)
-    util.make_dirs(pwd_json)
+    util.create_directory(pwd_results)
+    util.create_directory(pwd_json)
 
     process_image = ProcessImage(use_truss=True,
                                  pwd=pwd_results,
@@ -43,7 +44,7 @@ def main():
         tomato_name = str(i_tomato).zfill(3)
         file_name = tomato_name + ".png"
 
-        rgb_data = util.load_rgb(file_name, pwd=pwd_data, horizontal=True)
+        rgb_data = util.load_image(os.path.join(pwd_data, file_name), horizontal=True)
         px_per_mm = load_px_per_mm(pwd_data, tomato_name)
         process_image.add_image(rgb_data, px_per_mm=px_per_mm, name=tomato_name)
 

@@ -9,8 +9,8 @@ import cv2
 import json
 
 # Flex vision imports
-from flex_vision.utils.util import load_rgb
-from flex_vision.utils.util import make_dirs
+from flex_vision.utils.util import load_image
+from flex_vision.utils.util import create_directory
 from flex_vision.detect_truss.ProcessImage import ProcessImage
 
 # ls | cat -n | while read n f; do mv "$f" `printf "%03d.png" $n`; done
@@ -86,7 +86,7 @@ def main():
     pwd_data = os.path.join(pwd_root, "data", dataset)
     pwd_results = os.path.join(pwd_root, "labels", dataset)
 
-    make_dirs(pwd_results)
+    create_directory(pwd_results)
     process_image = ProcessImage()
     epsilon_factor = 0.0005  # contour simplification factor, lower is simpler!
 
@@ -97,7 +97,7 @@ def main():
         tomato_name = tomato_ID
         file_name = tomato_name + "_rgb" + extension
 
-        img_rgb = load_rgb(file_name, pwd_data, horizontal=True)
+        img_rgb = load_image(os.path.join(pwd_data, file_name), horizontal=True)
         process_image.add_image(img_rgb, name=tomato_name)
         process_image.color_space()
         process_image.segment_image()

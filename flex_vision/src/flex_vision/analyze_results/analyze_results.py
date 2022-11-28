@@ -17,7 +17,7 @@ from sklearn.metrics.pairwise import euclidean_distances as euclidean_distance_m
 
 # Flex vision imports
 from flex_vision.detect_truss.detect_tomato import compute_com
-from flex_vision.utils.util import load_rgb, plot_features, plot_error, make_dirs, plot_features_result, save_fig
+from flex_vision.utils.util import load_image, plot_features, plot_error, create_directory, plot_features_result
 
 
 def box_plot(vals, labels, save_path, ext='png', name="error_box_plot"):
@@ -245,7 +245,7 @@ def main():
     pwd_final_result = os.path.join(pwd_root, "results", 'final')
     if save_results:
         pwd_store = pwd_final_result
-        make_dirs(pwd_store)
+        create_directory(pwd_store)
     else:
         pwd_store = None
 
@@ -265,7 +265,7 @@ def main():
         file_res = os.path.join(pwd_res, truss_name + '.json')
 
         # load data
-        img_rgb = load_rgb(truss_name + '_rgb.png', pwd_lbl, horizontal=False)
+        img_rgb = load_image(os.path.join(pwd_lbl, truss_name + '_rgb.png'), horizontal=False)
 
         if not os.path.isfile(file_lbl):
             print('Labels do not exist for image: ' + truss_name + ' skipping this file!')

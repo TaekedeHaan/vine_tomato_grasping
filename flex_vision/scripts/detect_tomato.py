@@ -11,7 +11,7 @@ import cv2
 
 # Flex vision imports
 from flex_vision.utils.util import change_brightness
-from flex_vision.utils.util import make_dirs, load_rgb
+from flex_vision.utils.util import create_directory, load_image
 from flex_vision.detect_truss import settings
 from flex_vision.detect_truss.ProcessImage import ProcessImage
 from flex_vision.detect_truss.detect_tomato import detect_tomato
@@ -31,11 +31,9 @@ def main():
 
     pwd_results = os.path.join(pwd_root, "results", dataset, "05_tomatoes")
 
-    make_dirs(pwd_data)
-    make_dirs(pwd_results)
+    create_directory(pwd_data)
+    create_directory(pwd_results)
 
-    imMax = 255
-    count = 0
     brightness = 0.85
 
     for count, i_tomato in enumerate(range(i_start, i_end + 1)):
@@ -45,7 +43,7 @@ def main():
         tomato_name = tomatoID
         file_name = tomato_name + ".png"
 
-        imRGB = load_rgb(pwd_data, file_name, horizontal=True)
+        imRGB = load_image(os.path.join(pwd_data, file_name), horizontal=True)
 
         image = ProcessImage(use_truss=True)
 

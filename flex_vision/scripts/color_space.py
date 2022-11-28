@@ -12,7 +12,7 @@ from matplotlib import pyplot as plt
 
 # Flex vision imports
 from flex_vision.utils.util import save_img
-from flex_vision.utils.util import make_dirs
+from flex_vision.utils.util import create_directory
 
 
 def main():
@@ -30,8 +30,8 @@ def main():
     pwdData = os.path.join(pathCurrent, "data", dataSet)
     pwdResults = os.path.join(pathCurrent, "results", dataSet, "color_space")
 
-    make_dirs(pwdData)
-    make_dirs(pwdResults)
+    create_directory(pwdData)
+    create_directory(pwdResults)
 
     imMax = 255
     count = 0

@@ -266,7 +266,7 @@ def both_hist(img_hue, img_a, centers, lbl, a_bins=80, pwd="", name="", hue_min=
     hist, _, _, _ = plt.hist2d(x, y, range=my_range, bins=[a_bins / scale, hue_bins / scale])
     hist[hist > 0] = np.log(hist[hist > 0])
     img_hist_gray = 255 - (hist / np.amax(hist) * 255).astype(np.uint8)
-    img_hist_rgb = grey_2_rgb(img_hist_gray)  # (255*mapping.to_rgba(img_hist_gray)[:, :, 0:3]).astype(np.uint8)
+    img_hist_rgb = grey_2_rgb(img_hist_gray)
 
     # rescale based on scala param
     new_shape = (shape[1], shape[0])  # [width, height]

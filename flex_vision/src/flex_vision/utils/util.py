@@ -5,6 +5,7 @@ Created on Fri Feb 14 21:21:28 2020
 @author: taeke
 """
 import os
+from typing import TYPE_CHECKING
 
 # External imports
 import copy
@@ -18,6 +19,9 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 # Flex vision imports
 from flex_vision import constants
 from flex_vision.utils import color_maps
+
+if TYPE_CHECKING:
+    import typing
 
 ee_color = (255, 150, 0)
 grasp_color = (200, 0, 150)
@@ -54,154 +58,173 @@ params = {'text.usetex': True,
 plt.rcParams.update(params)
 
 
-def make_dirs(pwd):
-    if not os.path.isdir(pwd):
-        print("New path, creating a new folder: " + pwd)
-        os.makedirs(pwd)
+def create_directory(directory):
+    # type: (str) -> None
+    """ Make a (nested) directory, if it does not yet exist. 
+
+    Args:
+        directory: The directory to create
+    """
+    if not os.path.isdir(directory):
+        print("Creating directory " + directory)
+        os.makedirs(directory)
 
 
-def load_rgb(name, pwd=None, horizontal=True):
-    """ load image """
-    if pwd is None:
-        name_full = os.path.join(name)
-    else:
-        name_full = os.path.join(pwd, name)
+def load_image(image_file, horizontal=True, cv2_flag=cv2.COLOR_BGR2RGB):
+    # type: (str, bool, int) -> np.typing.ArrayLike
+    """ Load an image from a file, and transpose and/or convert colors if requested.
 
-    if not os.path.isfile(name_full):
-        print('Cannot load RGB data from file: ' + name_full + ', as it does not exist!')
+    Args:
+        image_file: The file to load the image from
+        horizontal: If set to true, the image will be transposed such that it is oriented horizontally. Defaults to True.
+        cv2_flag: CV2 color conversion flag. Defaults to cv2.COLOR_BGR2RGB.
+
+    Returns:
+        Image if loaded successfully. Otherwise None.
+    """
+    if not os.path.isfile(image_file):
+        print('Cannot load RGB data from file: ' + image_file + ', as it does not exist!')
         return None
 
-    img_bgr = cv2.imread(name_full)
-    img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
-    shape = img_rgb.shape[:2]
+    image = cv2.imread(image_file)
+    if image is None:
+        print("Failed to load image from path: %s" % image_file)
+        return None
+
+    # apply cv2 color conversion if requested
+    if cv2_flag is not None:
+        image = cv2.cvtColor(image, cv2_flag)
 
     # transpose image if required
-    if horizontal and (shape[0] > shape[1]):
-        img_rgb = np.transpose(img_rgb, [1, 0, 2])
+    if horizontal and (image.shape[0] > image.shape[1]):
+        image = np.transpose(image, [1, 0, 2])
 
-    if img_rgb is None:
-        print("Failed to load image from path: %s" % name_full)
-
-    return img_rgb
+    return image
 
 
 def bin2img(binary, dtype=np.uint8, copy=False):
+    # type (np.typing.ArrayLike, np.typing.DTypeLike, bool) -> np.typing.ArrayLike
+    """ Convert a binary array to the desired data type.
+
+    Args:
+        binary: The binary array
+        dtype: Numpy data type. Defaults to np.uint8.
+        copy: Copy the array if True. Defaults to False.
+
+    Returns:
+        The image in the desired data type.
     """
-    convert a binary image to the desired data type, default: uint8
+    return binary.astype(dtype, copy=copy) * np.iinfo(dtype).max
+
+
+def img2bin(image, copy=False):
+    # type (np.typing.ArrayLike, bool) -> np.typing.ArrayLike
+    """ Convert an image to a binary array.
+
+    Args:
+        image: The image.
+        copy: Copy the array if True. Defaults to False.
+
+    Returns:
+        The binary array.
     """
-    max_value = np.iinfo(dtype).max
-    return binary.astype(dtype, copy=copy) * max_value
+    return image.astype(bool, copy=copy)
 
 
-def img2bin(img, copy_img=False):
+def change_brightness(image, brightness, copy=True):
+    # type: (np.typing.ArrayLike, float, bool) -> np.typing.ArrayLike
+    """ Change image brightness.
+
+    Args:
+        image: The image.
+        brightness: The brightness values [-1.0, 1.0], A positive number increases the brightness, and negative value 
+          reduces the brightness.
+        copy: Copy the array if True. Defaults to True.
+
+    Raises:
+        ValueError: if the brightness is not within the specified range
+
+    Returns:
+        The image with changed brightness.
     """
-    convert image to binary with boolean data type
-    """
-    return img.astype(bool, copy=copy_img)
+    if copy:
+        image = image.copy()
 
-
-def change_brightness(img, brightness):
-    img_copy = img.copy()
-
-    if 0 < brightness < 1:
-        return img_copy + ((255 - img_copy) ** brightness).astype(np.uint8)
+    if 0 <= brightness < 1:
+        return image + ((255 - image) ** brightness).astype(np.uint8)
 
     if -1 < brightness < 0:
-        return img_copy - (img_copy ** -brightness).astype(np.uint8)
+        return image - (image ** -brightness).astype(np.uint8)
 
-    else:
-        print 'I can not do anything with a brightness value of ', brightness, '!'
-        return img
+    raise ValueError("Brightness of %f is invalid, please provide a value within range [-1.0, 1.0]", brightness)
 
 
-def change_color_brightness(color, brightness):
-    color = np.array(color)
+def angular_difference(alpha, beta):
+    # type: (float, float) -> float
+    """ Compute the difference between two angles.
 
-    if 0 < brightness < 1:
-        return color + ((255 - color) ** brightness).astype(np.uint8)
+    Args:
+        alpha: An angle in radians.
+        beta: An angle in radians.
 
-    if -1 < brightness < 0:
-        return color - (color ** -brightness).astype(np.uint8)
-
-    else:
-        print 'I can not do anything with a brightness value of ', brightness, '!'
-        return color
-
-
-def angular_difference(x, y):
+    Returns:
+        The angular difference in radians.
     """
-    compute the difference between two angles x, y
+    return np.abs(np.arctan2(np.sin(alpha - beta), np.cos(alpha - beta)))
+
+
+def remove_blobs(image):
+    # type: (np.typing.ArrayLike) -> np.typing.ArrayLike
+    """ Remove blobs from an image, such that only the largest blob remains.
+
+    Args:
+        image: The input image.
+
+    Returns:
+        The filtered image.
     """
-    return np.abs(np.arctan2(np.sin(x - y), np.cos(x - y)))
+    filtered_image = np.zeros(image.shape[:2], image.dtype)     # initialize outgoing image
 
-
-def remove_blobs(img_in):
-    dtype = img_in.dtype
-    value = np.iinfo(dtype).max
-
-    # initialize outgoing image
-    img_out = np.zeros(img_in.shape[:2], dtype)
-
-    # the extra [-2:] is essential to make it work with varios cv2 ersions
-    contours, _ = cv2.findContours(img_in, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)[-2:]
-
-    # only when the image contains a contour
-    if len(contours) != 0:
-        # print('Filling largest blob...')
+    # The indexing is essential to make it work with various cv2 versions (see: https://stackoverflow.com/a/56142875)
+    contours, _ = cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)[-2:]
+    if contours:
         cnt = max(contours, key=cv2.contourArea)
-        cv2.drawContours(img_out, [cnt], -1, value, cv2.FILLED)
-        # print('Done!...')
-    return cv2.bitwise_and(img_in, img_out)
+        cv2.drawContours(filtered_image, [cnt], -1, np.iinfo(image.dtype).max, cv2.FILLED)
+
+    return cv2.bitwise_and(image, filtered_image)
 
 
-def add_border(imOriginal, location, sizeBorder):
-    sizeOriginal = imOriginal.shape
-    location = location.astype(int)
+def stack_segments(image, background, tomato, peduncle, use_image_colours=True):
+    # type: (np.typing.ArrayLike, np.typing.ArrayLike, np.typing.ArrayLike, np.typing.ArrayLike, bool) -> np.typing.ArrayLike
+    """ Stack segments.
 
-    imBorder = np.zeros(sizeBorder[0:2], np.uint8)
+    Args:
+        image: The image.
+        background: The background segment.
+        tomato: The tomato segment.
+        peduncle: The peduncle segment.
+        use_image_colours: If true use the average color of the segment in the original image, otherwise use the default 
+          colors. Defaults to True.
 
-    colStart = location[0, 0]
-    colEnd = location[0, 0] + sizeOriginal[1]
-
-    rowStart = location[0, 1]
-    rowEnd = location[0, 1] + sizeOriginal[0]
-
-    if (rowEnd > sizeBorder[0]):
-        warnings.warn('cutting immage')
-        rowEnd = sizeBorder[0]
-
-    imBorder[rowStart:rowEnd, colStart:colEnd] = imOriginal[0:rowEnd - rowStart, :]
-
-    return imBorder
-
-
-def label_img(data, centers):
-    dist = abs(data - np.transpose(centers))
-    labels = np.argmin(dist, 1).astype(np.int32)
-    return np.expand_dims(labels, axis=1)
-
-
-def stack_segments(imRGB, background, tomato, peduncle, use_image_colours=True):
-    # stack segments
-
-    [h, w] = imRGB.shape[:2]
-
-    # set labels
+    Returns:
+        The stacked image segments
+    """
+    # segment labels
     backgroundLabel = 0
     tomatoLabel = 1
     peduncleLabel = 2
 
     # label pixels
-    pixelLabel = np.zeros((h, w), dtype=np.int8)
+    pixelLabel = np.zeros(image.shape[:2], dtype=np.int8)
     pixelLabel[background > 0] = backgroundLabel
     pixelLabel[cv2.bitwise_and(tomato, cv2.bitwise_not(peduncle)) > 0] = tomatoLabel
     pixelLabel[peduncle > 0] = peduncleLabel
 
     # get class colors
     if use_image_colours:
-        color_background = np.uint8(np.mean(imRGB[pixelLabel == backgroundLabel], 0))
-        color_tomato = np.uint8(np.mean(imRGB[pixelLabel == tomatoLabel], 0))
-        color_peduncle = np.uint8(np.mean(imRGB[pixelLabel == peduncleLabel], 0))
+        color_background = np.uint8(np.mean(image[pixelLabel == backgroundLabel], 0))
+        color_tomato = np.uint8(np.mean(image[pixelLabel == tomatoLabel], 0))
+        color_peduncle = np.uint8(np.mean(image[pixelLabel == peduncleLabel], 0))
 
     else:
         color_background = background_color
@@ -209,41 +232,67 @@ def stack_segments(imRGB, background, tomato, peduncle, use_image_colours=True):
         color_peduncle = peduncle_color
 
     color = np.vstack([color_background, color_tomato, color_peduncle]).astype(np.uint8)
-    # visualize
     res = color[pixelLabel.flatten()]
-    res2 = res.reshape((h, w, 3))
-
-    return res2
+    return res.reshape(image.shape)
 
 
-def grey_2_rgb(img_grey, vmin=0, vmax=255):
-    norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
-    cmap = mpl.cm.hot
-    mapping = mpl.cm.ScalarMappable(norm=norm, cmap=cmap)
-    img_rgb = (vmax * mapping.to_rgba(img_grey)[:, :, 0:3]).astype(np.uint8)
-    return img_rgb
+def grey_2_rgb(image, vmin=0, vmax=255, cmap=mpl.cm.hot):
+    # type: (np.typing.ArrayLike, int, int, mpl.colors.LinearSegmentedColormap) -> np.typing.ArrayLike
+    """ Convert a grey scale image to an RGB image.
+
+    Args:
+        image: The grey image
+        vmin: The minimum value of yhe output image. Defaults to 0.
+        vmax: The maximum value of yhe output image. Defaults to 255.
+        cmap: The color map to use. Default to mpl.cm.hot.
+
+    Returns:
+        The RGB image.
+    """
+    mapping = mpl.cm.ScalarMappable(norm=mpl.colors.Normalize(vmin=vmin, vmax=vmax), cmap=cmap)
+    return (vmax * mapping.to_rgba(image)[:, :, 0:3]).astype(np.uint8)
 
 
-def save_img(img, pwd, name, dpi=constants.DPI, title="", title_size=20, ext=constants.SAVE_EXTENSION, color_map='plasma', vmin=None,
-             vmax=None):
+def save_img(image,                           # type: np.typing.ArrayLike
+             pwd,                           # type: str
+             name,                          # type: str
+             dpi=constants.DPI,             # type: int
+             title="",                      # type: str
+             title_size=20,                 # type: int
+             color_map='plasma',            # type: str
+             vmin=None,                     # type: typing.Optional[int]
+             vmax=None                      # type: typing.Optional[int]
+             ):
+    # type (...) -> None
+    """ Save image
 
-    plt.rcParams["savefig.format"] = constants.SAVE_EXTENSION
+    Args:
+        image: The image
+        pwd: The path to save the image to
+        name: The file name.
+        dpi: The DPI. Defaults to constants.DPI
+        title: The title. Defaults to ""
+        title_size: The title size. Defaults to 20.
+        color_map: The color map. Defaults to plasma
+        vmin: The minimum value of yhe output image. Defaults to None.
+        vmax: The maximum value of yhe output image. Defaults to None.
+    """
+    plt.rcParams["savefig.format"] = constants.SAVE_EXTENSION[1:]  # remove leading "."
     plt.rcParams["savefig.bbox"] = 'tight'
     plt.rcParams['axes.titlesize'] = title_size
-    # plt.rcParams['image.cmap'] = color_map
 
     if color_map == 'HSV':
         color_map = color_maps.hsv_color_scale()
     elif color_map == 'Lab':
         color_map = color_maps.lab_color_scale()
 
-    sizes = np.shape(img)
+    sizes = np.shape(image)
     fig = plt.figure()
     fig.set_size_inches(float(sizes[1])/float(sizes[0]), 1, forward=False)
     ax = plt.Axes(fig, [0., 0., 1., 1.])
     ax.set_axis_off()
     fig.add_axes(ax)
-    ax.imshow(img, cmap=color_map, vmin=vmin, vmax=vmax)
+    ax.imshow(image, cmap=color_map, vmin=vmin, vmax=vmax)
     # plt.axis('off')
     if title is not None:
         plt.title(title)
@@ -257,13 +306,22 @@ def save_img(img, pwd, name, dpi=constants.DPI, title="", title_size=20, ext=con
     # plt.gca().yaxis.set_major_locator(plt.NullLocator())
 
     # make dir if it does not yet exist
-    make_dirs(pwd)
+    create_directory(pwd)
     fig.savefig(os.path.join(pwd, name), dpi=dpi)
     plt.close(fig)
 
 
 def save_fig(fig, pwd, name, dpi=constants.DPI, no_ticks=True, ext=constants.SAVE_EXTENSION):
+    """ Save figure.
 
+    Args:
+        fig: The figure
+        pwd: The path
+        name: The file name
+        dpi: The dots per image. Defaults to constants.DPI.
+        no_ticks: If set to True, no ticks will be shown. Defaults to True.
+        ext: The file extension. Defaults to constants.SAVE_EXTENSION.
+    """
     # eps does not support transparancy
     # plt.rcParams["savefig.format"] = ext
 
@@ -282,7 +340,7 @@ def save_fig(fig, pwd, name, dpi=constants.DPI, no_ticks=True, ext=constants.SAV
     # plt.gca().yaxis.set_major_locator(plt.NullLocator())
 
     # make dir if it does not yet exist
-    make_dirs(pwd)
+    create_directory(pwd)
     fig.savefig(os.path.join(pwd, name + ext), dpi=dpi)  # , bbox_inches='tight', pad_inches=0)
     plt.close(fig)
 
@@ -293,8 +351,8 @@ def plot_segments(img_rgb, background, tomato, peduncle, fig=None, show_backgrou
         alpha: trasparancy of segments, low value is more transparant!
     """
 
-    # if fig is None:
-    #     fig = plt.figure()
+    if fig is None:
+        fig = plt.figure()
 
     img_segments = stack_segments(img_rgb, background, tomato, peduncle, use_image_colours=use_image_colours)
     added_image = cv2.addWeighted(img_rgb, 1 - alpha, img_segments, alpha, 0)

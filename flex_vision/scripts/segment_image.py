@@ -7,8 +7,8 @@ Created on Fri May 22 12:04:59 2020
 import os
 
 # Flex vision imports
-from flex_vision.utils.util import load_rgb
-from flex_vision.utils.util import make_dirs
+from flex_vision.utils.util import load_image
+from flex_vision.utils.util import create_directory
 from flex_vision.detect_truss.ProcessImage import ProcessImage
 
 
@@ -28,7 +28,7 @@ def main():
     pwd_data = os.path.join(pwd_root, "data", dataset)
     pwd_results = os.path.join(pwd_root, "results", dataset)
 
-    make_dirs(pwd_results)
+    create_directory(pwd_results)
     process_image = ProcessImage(use_truss=True,
                                  pwd=pwd_results,
                                  save=save)
@@ -42,7 +42,7 @@ def main():
             tomato_name = tomato_ID
             file_name = tomato_name + extension
 
-            img_rgb = load_rgb(file_name, pwd_data, horizontal=True)
+            img_rgb = load_image(os.path.join(pwd_data, file_name), horizontal=True)
             process_image.add_image(img_rgb, name=tomato_name)
             process_image.color_space(compute_a=True)
             process_image.segment_image(radius=radius)
