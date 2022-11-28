@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 
 # External imports
 from flex_vision.utils import util
-from flex_vision.detect_truss.ProcessImage import ProcessImage
+from flex_vision.detect_truss.process_image import ProcessImage
 from flex_vision.analyze_results.analyze_results import index_true_positives
 
 

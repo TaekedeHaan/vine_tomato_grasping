@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 # Flex vision imports
 from flex_vision import constants
-from flex_vision.detect_truss.ProcessImage import ProcessImage, load_px_per_mm
+from flex_vision.detect_truss.process_image import ProcessImage, load_px_per_mm
 from flex_vision.utils import util
 from flex_vision.utils.timer import Timer
 

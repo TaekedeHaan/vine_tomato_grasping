@@ -38,10 +38,10 @@ Moreover, if you provide a ground truth, an error may be determined:
 
 Currently, this repository is fairly unstructured, I will improve this. For now:
 
-1. The main file for feature extraction and grasp pose determination is [detect_truss/ProcessImage.py](src/flex_vision/detect_truss/ProcessImage.py)
+1. The main file for feature extraction and grasp pose determination is [detect_truss/process_image.py](src/flex_vision/detect_truss/process_image.py)
 2. The main file for comparing these results with the ground truth is [detect_truss/analyze_results.py](src/flex_vision/detect_truss/analyze_results.py)
 
-There are some additional files, first of these files profide functions used in ProcessImage.py
+There are some additional files, first of these files profide functions used in process_image.py
 - [compute_grasp](src/flex_vision/detect_truss/compute_grasp.py): contains parameters used form computing the grasp location
 - [detect_peduncle_2](src/flex_vision/detect_truss/detect_peduncle_2.py): contains parameters and functions for peducnle detection, NOTE: detect_peduncle.py is not used
 - [detect_tomato](src/flex_vision/detect_truss/detect_tomato.py): contains parameters and functions for tomato detection
@@ -49,8 +49,8 @@ There are some additional files, first of these files profide functions used in 
 - [segment_image](src/flex_vision/detect_truss/segment_image.py): contains parameters and functions for image segmentation
 
 There are two helper modules:
-- [geometry](src/flex_vision/utils/geometry.py): this module contains the Point2D and Transform class, these are used to track 2d points in images with respect to different reference frames. This is usefull for ProcessImage.py since the actual image processing is done on a rotated and translated reference frame.
-- [imgpy](src/flex_vision/utils/imgpy.py): this module contains the Image class, this is used for easy rotating and cropping of images, also used in ProcessImage.py
+- [geometry](src/flex_vision/utils/geometry.py): this module contains the Point2D and Transform class, these are used to track 2d points in images with respect to different reference frames. This is usefull for process_image.py since the actual image processing is done on a rotated and translated reference frame.
+- [imgpy](src/flex_vision/utils/imgpy.py): this module contains the Image class, this is used for easy rotating and cropping of images, also used in process_image.py
 
 There are some tests:
 - [test](src/flex_vision/detect_truss/test.py) contains proper tests for the geometry module. It certainly does not cover all possible scenaro but its a good start.

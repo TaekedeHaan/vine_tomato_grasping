@@ -20,7 +20,7 @@ from flex_grasp.msg import ImageProcessingSettings
 from flex_grasp.msg import FlexGraspErrorCodes
 
 from flex_shared_resources.depth_interface import DepthImageFilter, PointCloudFilter
-from flex_vision.detect_truss.ProcessImage import ProcessImage
+from flex_vision.detect_truss.process_image import ProcessImage
 from flex_shared_resources.data_logger import DataLogger
 from flex_shared_resources.experiment_info import ExperimentInfo
 
@@ -29,6 +29,7 @@ from func.utils import camera_info2rs_intrinsics
 from func.utils import colored_depth_image
 
 DEFAULT_CAMERA_SIM = False
+
 
 class ObjectDetection(object):
     """ObjectDetection"""
@@ -57,7 +58,8 @@ class ObjectDetection(object):
 
         self.input_logger = self.initialize_input_logger()
         self.output_logger = self.initialize_output_logger()
-        self.settings_logger = DataLogger(self.node_name, {"settings": "image_processing_settings"}, {"settings": ImageProcessingSettings}, bag_name='image_processing_settings')
+        self.settings_logger = DataLogger(self.node_name, {"settings": "image_processing_settings"}, {
+                                          "settings": ImageProcessingSettings}, bag_name='image_processing_settings')
 
         # cv bridge
         self.bridge = CvBridge()
@@ -226,7 +228,8 @@ class ObjectDetection(object):
             success = self.output_logger.publish_messages_from_bag(self.experiment_info.path, self.experiment_info.id)
             return success
 
-        self.settings_logger.write_messages_to_bag({"settings": self.settings}, self.experiment_info.path, self.experiment_info.id)
+        self.settings_logger.write_messages_to_bag(
+            {"settings": self.settings}, self.experiment_info.path, self.experiment_info.id)
 
         px_per_mm = self.compute_px_per_mm()
         self.process_image.add_image(self.color_image, px_per_mm=px_per_mm)
@@ -259,7 +262,8 @@ class ObjectDetection(object):
         output_messages['tomato_image_total'] = self.bridge.cv2_to_imgmsg(truss_visualization_total, encoding="rgba8")
         output_messages['truss_pose'] = self.generate_cage_pose(object_features['grasp_location'], peduncle_mask)
 
-        success = self.output_logger.publish_messages(output_messages, self.experiment_info.path, self.experiment_info.id)
+        success = self.output_logger.publish_messages(
+            output_messages, self.experiment_info.path, self.experiment_info.id)
         return success
 
     def generate_cage_pose(self, grasp_features, peduncle_mask):
@@ -326,7 +330,8 @@ class ObjectDetection(object):
             rospy.logdebug("[{0}] Will not logging input messages: running in playback mode!".format(self.node_name))
         else:
             rospy.logdebug("[{0}] Logging input messages".format(self.node_name))
-            self.input_logger.write_messages_to_bag(self.get_messages(), self.experiment_info.path, self.experiment_info.id)
+            self.input_logger.write_messages_to_bag(
+                self.get_messages(), self.experiment_info.path, self.experiment_info.id)
 
     def get_messages(self):
         messages = {}

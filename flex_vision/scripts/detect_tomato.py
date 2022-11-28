@@ -13,7 +13,7 @@ import cv2
 from flex_vision.utils.util import change_brightness
 from flex_vision.utils.util import create_directory, load_image
 from flex_vision.detect_truss import settings
-from flex_vision.detect_truss.ProcessImage import ProcessImage
+from flex_vision.detect_truss.process_image import ProcessImage
 from flex_vision.detect_truss.detect_tomato import detect_tomato
 
 

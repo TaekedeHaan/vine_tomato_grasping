@@ -9,7 +9,7 @@ import os
 # Flex vision imports
 from flex_vision.utils.util import load_image
 from flex_vision.utils.util import create_directory
-from flex_vision.detect_truss.ProcessImage import ProcessImage
+from flex_vision.detect_truss.process_image import ProcessImage
 
 
 def main():
