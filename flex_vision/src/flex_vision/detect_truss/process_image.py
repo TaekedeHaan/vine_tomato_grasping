@@ -1,6 +1,7 @@
 #!/usr/bin/env python2
 import json
 import os
+import logging
 import warnings
 
 # External imports
@@ -24,6 +25,7 @@ from segment_image import segment_truss
 import settings
 
 warnings.filterwarnings('error', category=FutureWarning)
+logger = logging.getLogger(__name__)
 
 
 class ProcessImage(object):
@@ -237,10 +239,12 @@ class ProcessImage(object):
         self.centers = points_from_coords(centers, self.LOCAL_FRAME_ID, self.transform)
         self.com = Point2D(com, self.LOCAL_FRAME_ID, self.transform)
 
-        if self.com is None:
-            return False
-        else:
+        if centers:
+            logger.debug("Detected %d tomatoes in image %s", len(radii), self.name)
             return True
+        else:
+            logger.warning("Did not detected any tomatoes in image %s", self.name)
+            return False
 
     @Timer("peduncle detection", name_space)
     def detect_peduncle(self):
@@ -557,32 +561,32 @@ class ProcessImage(object):
 
         success = self.segment_image()
         if success is False:
-            print "Failed to segment image"
+            logger.warning("Failed to process image: failed to segment image")
             return success
 
         success = self.filter_image()
         if success is False:
-            print "Failed to filter image"
+            logger.warning("Failed to process image: failed to filter image")
             return success
 
         success = self.rotate_cut_img()
         if success is False:
-            print "Failed to crop image"
+            logger.warning("Failed to process image: failed to crop image")
             return success
 
         success = self.detect_tomatoes()
         if success is False:
-            print "Failed to detect tomatoes"
+            logger.warning("Failed to process image: failed to detect tomatoes")
             return success
 
         success = self.detect_peduncle()
         if success is False:
-            print "Failed to detect peduncle"
+            logger.warning("Failed to process image: failed to detect peduncle")
             return success
 
         success = self.detect_grasp_location()
         if success is False:
-            print "Failed to detect grasp location"
+            logger.warning("Failed to process image: failed to detect grasp location")
         return success
 
     def get_settings(self):
