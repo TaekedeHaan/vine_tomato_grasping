@@ -239,7 +239,7 @@ class ProcessImage(object):
         self.centers = points_from_coords(centers, self.LOCAL_FRAME_ID, self.transform)
         self.com = Point2D(com, self.LOCAL_FRAME_ID, self.transform)
 
-        if centers:
+        if centers.any():
             logger.debug("Detected %d tomatoes in image %s", len(radii), self.name)
             return True
         else:

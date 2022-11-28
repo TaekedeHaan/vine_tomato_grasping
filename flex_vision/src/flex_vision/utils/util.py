@@ -311,7 +311,7 @@ def save_img(image,                           # type: np.typing.ArrayLike
     plt.close(fig)
 
 
-def save_fig(fig, pwd, name, dpi=constants.DPI, no_ticks=True, ext=constants.SAVE_EXTENSION):
+def save_fig(fig, pwd, name, dpi=constants.DPI, no_ticks=True, ext=constants.SAVE_EXTENSION, title=None):
     """ Save figure.
 
     Args:
