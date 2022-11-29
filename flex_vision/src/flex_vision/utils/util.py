@@ -378,7 +378,7 @@ def plot_image(img, show_axis=False, animated=False, nrows=1, ncols=1):
         plot image
     """
     sizes = np.shape(img)
-    fig = plt.figure()
+    fig = plt.figure(dpi=constants.DPI)
     fig.set_size_inches(LINEWIDTH, LINEWIDTH * float(sizes[0]) / float(sizes[1]), forward=False)
 
     # if multiple axes are desired we add them using gridspec
@@ -425,7 +425,7 @@ def plot_truss(img_rgb=None, tomato=None, peduncle=None):
 
     if peduncle:
         add_lines(peduncle['centers'], peduncle['angles'],
-                  lengths=peduncle['length'], color=peduncle_color, linewidth=20)
+                  lengths=peduncle['length'], color=peduncle_color, linewidth=5)
 
 
 def plot_features(img_rgb=None, tomato=None, peduncle=None, grasp=None,

@@ -2,6 +2,7 @@
 import json
 import os
 import logging
+import math
 import warnings
 
 # External imports
@@ -24,13 +25,10 @@ from detect_tomato import detect_tomato
 from segment_image import segment_truss
 import settings
 
-warnings.filterwarnings('error', category=FutureWarning)
 logger = logging.getLogger(__name__)
 
 
 class ProcessImage(object):
-    version = '0.1'
-
     # frame ids
     ORIGINAL_FRAME_ID = 'original'
     LOCAL_FRAME_ID = 'local'
@@ -125,12 +123,12 @@ class ProcessImage(object):
         self.tomato = tomato
         self.peduncle = peduncle
 
-        if self.tomato.sum() == 0:
-            warnings.warn("Segment truss: no pixel has been classified as tomato!")
+        if not self.tomato.any():
+            logger.warning("Failed to segment image: no pixel has been classified as tomato")
             success = False
 
-        if self.peduncle.sum() == 0:
-            warnings.warn("Segment truss: no pixel has been classified as peduncle!")
+        if not self.peduncle.any():
+            warnings.warn("Failed to segment image: no pixel has been classified as peduncle")
             success = False
 
         if self.save:
@@ -239,19 +237,17 @@ class ProcessImage(object):
         self.centers = points_from_coords(centers, self.LOCAL_FRAME_ID, self.transform)
         self.com = Point2D(com, self.LOCAL_FRAME_ID, self.transform)
 
-        if centers.any():
-            logger.debug("Detected %d tomatoes in image %s", len(radii), self.name)
-            return True
-        else:
-            logger.warning("Did not detected any tomatoes in image %s", self.name)
+        if centers is None or not centers.any():
+            logger.warning("Failed to detect any tomatoes in image %s", self.name)
             return False
+        else:
+            logger.debug("Successfully detected %d tomatoes in image %s", len(radii), self.name)
+            return True
 
     @Timer("peduncle detection", name_space)
     def detect_peduncle(self):
         """Detect the peduncle and junctions"""
         pwd = os.path.join(self.pwd, '06_peduncle')
-        success = True
-
         if self.save:
             img_bg = change_brightness(self.get_segmented_image(local=True), 0.85)
         else:
@@ -265,10 +261,11 @@ class ProcessImage(object):
                                                                      name=self.name,
                                                                      pwd=pwd)
         # convert to 2D points
-        peduncle_points = points_from_coords(np.argwhere(mask)[:, (1, 0)], self.LOCAL_FRAME_ID, self.transform)
-        junction_points = points_from_coords(junc_coords, self.LOCAL_FRAME_ID, self.transform)
-        end_points = points_from_coords(end_coords, self.LOCAL_FRAME_ID, self.transform)
+        self.peduncle_points = points_from_coords(np.argwhere(mask)[:, (1, 0)], self.LOCAL_FRAME_ID, self.transform)
+        self.junction_points = points_from_coords(junc_coords, self.LOCAL_FRAME_ID, self.transform)
+        self.end_points = points_from_coords(end_coords, self.LOCAL_FRAME_ID, self.transform)
 
+        # extract branch data
         for branch_type in branch_data:
             for i, branch in enumerate(branch_data[branch_type]):
                 for lbl in ['coords', 'src_node_coord', 'dst_node_coord', 'center_node_coord']:
@@ -279,17 +276,21 @@ class ProcessImage(object):
                     else:
                         branch_data[branch_type][i][lbl] = Point2D(branch[lbl], self.LOCAL_FRAME_ID, self.transform)
 
-        self.junction_points = junction_points
-        self.end_points = end_points
-        self.peduncle_points = peduncle_points
         self.branch_data = branch_data
-        return success
+
+        # log result depending on whether any peduncle points have been detected
+        if self.peduncle_points:
+            logger.debug("Successfully detected peduncle consisting of %d points with %d junctions and %d ends",
+                         len(self.peduncle_points), len(self.junction_points), len(self.end_points))
+            return True
+        else:
+            logger.warning("Failed to detect any peduncle points")
+            return False
 
     @Timer("detect grasp location", name_space)
     def detect_grasp_location(self):
         """Determine grasp location based on peduncle, junction and com information"""
         pwd = os.path.join(self.pwd, '07_grasp')
-        success = True
 
         settings = self.settings['compute_grasp']
 
@@ -312,70 +313,69 @@ class ProcessImage(object):
                 points_keep.extend(branch_points_keep)
                 branches_i.extend([branch_i] * len(branch_points_keep))
 
-        if len(branches_i) > 0:
-            i_grasp = np.argmin(self.com.dist(points_keep))
-            grasp_point = points_keep[i_grasp]
-            branch_i = branches_i[i_grasp]
-
-            grasp_angle_local = np.deg2rad(self.branch_data['junction-junction'][branch_i]['angle'])
-            grasp_angle_global = -self.angle + grasp_angle_local
-
-            self.grasp_point = grasp_point
-            self.grasp_angle_local = grasp_angle_local
-            self.grasp_angle_global = grasp_angle_global
-
-        else:
-            warnings.warn('Did not detect a valid grasping branch')
+        if not branches_i:
+            logger.warning("Failed to detect a valid grasping branch")
 
             if self.save:
-                img_rgb = self.img_rgb_crop
-                save_img(img_rgb, pwd=pwd, name=self.name)
-                img_rgb = self.img_rgb
-                save_img(img_rgb, pwd=pwd, name=self.name + '_g')
+                save_img(self.img_rgb_crop, pwd=pwd, name=self.name)
+                save_img(self.img_rgb, pwd=pwd, name=self.name + '_g')
+
             return False
 
-        if self.save:
-            open_dist_px = settings['open_dist_mm'] * self.px_per_mm
-            finger_thickness_px = settings['finger_thinkness_mm'] * self.px_per_mm
-            brightness = 0.85
+        # Select optimal grasp location
+        i_grasp = np.argmin(self.com.dist(points_keep))
+        grasp_point = points_keep[i_grasp]
+        branch_i = branches_i[i_grasp]
 
-            for frame_id in [self.LOCAL_FRAME_ID, self.ORIGINAL_FRAME_ID]:
-                grasp_coord = self.grasp_point.get_coord(frame_id)
+        grasp_angle_local = np.deg2rad(self.branch_data['junction-junction'][branch_i]['angle'])
+        grasp_angle_global = -self.angle + grasp_angle_local
 
-                if frame_id == self.LOCAL_FRAME_ID:
-                    grasp_angle = self.grasp_angle_local
-                    img_rgb = self.img_rgb_crop
+        self.grasp_point = grasp_point
+        self.grasp_angle_local = grasp_angle_local
+        self.grasp_angle_global = grasp_angle_global
+        logger.debug("Successfully determined grasp location at x: %dpx, y: %dpx with angle %.1fdeg",
+                     grasp_point.coord[0], grasp_point.coord[1], math.degrees(grasp_angle_local))
 
-                elif frame_id == self.ORIGINAL_FRAME_ID:
-                    grasp_angle = self.grasp_angle_global
-                    img_rgb = self.img_rgb
+        if not self.save:
+            return True
 
-                img_rgb_bright = change_brightness(img_rgb, brightness)
-                branch_image = np.zeros(img_rgb_bright.shape[0:2], dtype=np.uint8)
-                coords = np.rint(coords_from_points(points_keep, frame_id)).astype(np.int)
-                branch_image[coords[:, 1], coords[:, 0]] = 255
+        open_dist_px = settings['open_dist_mm'] * self.px_per_mm
+        finger_thickness_px = settings['finger_thinkness_mm'] * self.px_per_mm
+        brightness = 0.85
 
-                if frame_id == self.ORIGINAL_FRAME_ID:
-                    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-                    branch_image = cv2.dilate(branch_image, kernel, iterations=1)
+        for frame_id in [self.LOCAL_FRAME_ID, self.ORIGINAL_FRAME_ID]:
+            grasp_coord = self.grasp_point.get_coord(frame_id)
 
-                visualize_skeleton(img_rgb_bright, branch_image, show_nodes=False, skeleton_color=(0, 0, 0),
-                                   skeleton_width=4)
-                plot_grasp_location(grasp_coord, grasp_angle, finger_width=minimum_grasp_length_px,
-                                    finger_thickness=finger_thickness_px, finger_dist=open_dist_px, pwd=pwd,
-                                    name=self.name + '_' + frame_id, linewidth=3)
+            if frame_id == self.LOCAL_FRAME_ID:
+                grasp_angle = self.grasp_angle_local
+                img_rgb = self.img_rgb_crop
 
-        return success
+            elif frame_id == self.ORIGINAL_FRAME_ID:
+                grasp_angle = self.grasp_angle_global
+                img_rgb = self.img_rgb
+
+            img_rgb_bright = change_brightness(img_rgb, brightness)
+            branch_image = np.zeros(img_rgb_bright.shape[0:2], dtype=np.uint8)
+            coords = np.rint(coords_from_points(points_keep, frame_id)).astype(np.int)
+            branch_image[coords[:, 1], coords[:, 0]] = 255
+
+            if frame_id == self.ORIGINAL_FRAME_ID:
+                kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+                branch_image = cv2.dilate(branch_image, kernel, iterations=1)
+
+            visualize_skeleton(img_rgb_bright, branch_image, show_nodes=False, skeleton_color=(0, 0, 0),
+                               skeleton_width=4)
+            plot_grasp_location(grasp_coord, grasp_angle, finger_width=minimum_grasp_length_px,
+                                finger_thickness=finger_thickness_px, finger_dist=open_dist_px, pwd=pwd,
+                                name=self.name + '_' + frame_id, linewidth=3)
+
+        return True
 
     def crop(self, image):
         return imgpy.crop(image, angle=-self.angle, bbox=self.bbox)
 
     def get_tomatoes(self, local=False):
-        if local:
-            target_frame_id = self.LOCAL_FRAME_ID
-        else:
-            target_frame_id = self.ORIGINAL_FRAME_ID
-
+        target_frame_id = self.LOCAL_FRAME_ID if local else self.ORIGINAL_FRAME_ID
         if self.centers is None:
             radii = []
             xy_centers = [[]]

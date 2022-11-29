@@ -1,34 +1,42 @@
 #!/usr/bin/env python2
+import logging
+
 # External imports
 import numpy as np
 from matplotlib import pyplot as plt
 
 # External imports
+from flex_vision import constants
 from flex_vision.utils import util
 from flex_vision.detect_truss.process_image import ProcessImage
 from flex_vision.analyze_results.analyze_results import index_true_positives
 
 
+logger = logging.getLogger("flex_vision")
+
+
 def main():
-    visualize = True
-    process_image = ProcessImage()
+    visualize = False
+    process_image = ProcessImage(pwd=constants.PATH_RESULTS, save=True)
     radius_min_mm = process_image.settings['detect_tomato']['radius_min_mm']
     radius_max_mm = process_image.settings['detect_tomato']['radius_max_mm']
 
     # generate truss
     px_per_mm = 3.75
-    radii_range = [radius_min_mm * px_per_mm, radius_max_mm * px_per_mm]
+    radii_range = [1.2 * radius_min_mm * px_per_mm, 0.8 * radius_max_mm * px_per_mm]
     tomatoes, peduncle = generate_truss_features([750, 350], radii_range)
+    print(radii_range)
+    print(tomatoes)
 
     # generate background image
-    bg_img = np.tile(np.array(util.background_color, ndmin=3, dtype=np.uint8), (1080, 1920, 1))
+    background_image = np.tile(np.array(util.background_color, ndmin=3, dtype=np.uint8), (1080, 1920, 1))
 
     # plot truss
-    plt.figure(figsize=[16, 9], dpi=120)
-    util.plot_image(bg_img)
+    util.plot_image(background_image)
     util.plot_truss(tomato=tomatoes, peduncle=peduncle)
     util.clear_axis()
     img = util.figure_to_image(plt.gcf())
+    print(img.shape)
 
     # process the generated image
     process_image.add_image(img, px_per_mm=px_per_mm, name='test')
@@ -43,9 +51,16 @@ def main():
         util.clear_axis()
         plt.show()
 
+    print(tomatoes['centers'])
+    print(features_prediction['tomato']['centers'])
+
     # analyze results
-    i_prediction, i_label, false_pos, false_neg = index_true_positives(tomatoes['centers'],
-                                                                       features_prediction['tomato']['centers'], 10)
+    i_prediction, i_label, false_pos, false_neg = index_true_positives(
+        tomatoes['centers'],
+        features_prediction['tomato']['centers'],
+        10,
+        px_per_mm
+    )
 
     centers_prediction = np.array(features_prediction['tomato']['centers'])[i_prediction]
     radii_prediction = np.array(features_prediction['tomato']['radii'])[i_prediction]
@@ -53,8 +68,8 @@ def main():
     centers_label = np.array(tomatoes['centers'])[i_label]
     radii_label = np.array(tomatoes['radii'])[i_label]
 
-    print 'predicted features, centers: ', centers_prediction, ' radii: ', radii_prediction
-    print 'actual features, centers: ', centers_label, ' radii: ', radii_label
+    print('predicted features, centers: ', centers_prediction, ' radii: ', radii_prediction)
+    print('actual features, centers: ', centers_label, ' radii: ', radii_label)
 
 
 def generate_truss_features(truss_center, radii_range, angle_deg=30):
