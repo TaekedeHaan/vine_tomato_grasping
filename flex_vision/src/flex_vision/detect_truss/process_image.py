@@ -40,7 +40,6 @@ class ProcessImage(object):
         self.pwd = pwd
         self.name = name
 
-        self.scale = None
         self.img_rgb = None
         self.shape = None
         self.px_per_mm = None
@@ -58,8 +57,6 @@ class ProcessImage(object):
     def add_image(self, img_rgb, px_per_mm=None, name=None):
 
         # TODO: scaling is currently not supported, would be interesting to reduce computing power
-
-        self.scale = 1.0
         self.img_rgb = img_rgb
         self.shape = img_rgb.shape[:2]
         self.px_per_mm = px_per_mm
