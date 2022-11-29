@@ -3,7 +3,6 @@ import json
 import os
 import logging
 import math
-import warnings
 
 # External imports
 import numpy as np
@@ -128,12 +127,16 @@ class ProcessImage(object):
             success = False
 
         if not self.peduncle.any():
-            warnings.warn("Failed to segment image: no pixel has been classified as peduncle")
+            logger.warning("Failed to segment image: no pixel has been classified as peduncle")
             success = False
 
         if self.save:
             self.save_results(self.name, pwd=pwd)
 
+        logger.debug("Successfully segmented the image into %.1f%% tomato, %.1f%% peduncle and %.1f%% background",
+                     100 * float(np.sum(self.tomato > 0)) / self.img_hue.size,
+                     100 * float(np.sum(self.peduncle > 0)) / self.img_hue.size,
+                     100 * float(np.sum(self.background > 0)) / self.img_hue.size)
         return success
 
     @Timer("filtering", name_space)
@@ -147,26 +150,33 @@ class ProcessImage(object):
         if folder_name is not None:
             pwd = os.path.join(pwd, folder_name)
 
-        tomato, peduncle, background = filter_segments(self.tomato,
-                                                       self.peduncle,
-                                                       self.background,
-                                                       settings=self.settings['filter_segments'])
+        # Store member locally such that they can be compared
+        tomato = self.tomato
+        peduncle = self.peduncle
+        background = self.background
 
-        self.tomato = tomato
-        self.peduncle = peduncle
-        self.background = background
-
-        self.background_pixels = np.sum(background)
-        self.tomato_pixels = np.sum(tomato)
-        self.stem_pixels = np.sum(peduncle)
+        self.tomato, self.peduncle, self.background = filter_segments(tomato,
+                                                                      peduncle,
+                                                                      background,
+                                                                      settings=self.settings['filter_segments'])
 
         if self.save:
             self.save_results(self.name, pwd=pwd)
 
-        if self.tomato.sum() == 0:
-            warnings.warn("filter segments: no pixel has been classified as tomato")
+        self.background_pixels = np.sum(self.background > 0)
+        self.tomato_pixels = np.sum(self.tomato > 0)
+        self.stem_pixels = np.sum(self.peduncle > 0)
+
+        if not self.tomato_pixels:
+            logger.warning("Failed to filter segments: no pixel has been classified as tomato")
             return False
 
+        if not self.stem_pixels:
+            logger.warning("Failed to filter segments: no pixel has been classified as stem")
+            return False
+
+        logger.debug("Successfully filtered %d pixels from the tomate segment and %d pixels from the peduncle segment",
+                     np.sum(tomato > 0) - self.tomato_pixels, np.sum(peduncle > 0) - self.stem_pixels)
         return True
 
     @Timer("cropping", name_space)
@@ -174,9 +184,9 @@ class ProcessImage(object):
         """crop the image"""
         pwd = os.path.join(self.pwd, '04_crop')
 
-        if self.peduncle.sum() == 0:
-            warnings.warn("Cannot rotate based on peduncle, since it does not exist!")
-            angle = 0
+        if not self.peduncle.sum():
+            logger.warning("Cannot rotate based on peduncle since it is empty")
+            angle = 0.0
         else:
             angle = imgpy.compute_angle(self.peduncle)  # [rad]
 
@@ -184,8 +194,8 @@ class ProcessImage(object):
         peduncle_rotate = imgpy.rotate(self.peduncle, -angle)
         truss_rotate = imgpy.add(tomato_rotate, peduncle_rotate)
 
-        if truss_rotate.sum() == 0:
-            warnings.warn("Cannot crop based on truss segment, since it does not exist!")
+        if not truss_rotate.sum():
+            logger.warning("Cannot crop based on truss segment since it is empty")
             return False
 
         bbox = imgpy.bbox(truss_rotate)
@@ -204,6 +214,7 @@ class ProcessImage(object):
         self.peduncle_crop = imgpy.cut(peduncle_rotate, self.bbox)
         self.img_rgb_crop = imgpy.crop(self.img_rgb, angle=-angle, bbox=bbox)
         self.truss_crop = imgpy.cut(truss_rotate, self.bbox)
+        logger.debug("Successfully cropped image")
 
         if self.save:
             img_rgb = self.get_rgb(local=True)
@@ -215,19 +226,14 @@ class ProcessImage(object):
         """detect tomatoes based on the truss segment"""
         pwd = os.path.join(self.pwd, '05_tomatoes')
 
-        if self.truss_crop.sum() == 0:
-            warnings.warn("Detect tomato: no pixel has been classified as truss!")
+        if not self.truss_crop.sum():
+            logger.warning("Cannot detect tomatoes: no pixel has been classified as truss")
             return False
-
-        if self.save:
-            img_bg = self.img_rgb_crop
-        else:
-            img_bg = self.img_rgb_crop
 
         centers, radii, com = detect_tomato(self.truss_crop,
                                             self.settings['detect_tomato'],
                                             px_per_mm=self.px_per_mm,
-                                            img_rgb=img_bg,
+                                            img_rgb=self.img_rgb_crop,
                                             save=self.save,
                                             pwd=pwd,
                                             name=self.name)
