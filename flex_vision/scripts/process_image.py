@@ -30,7 +30,7 @@ def main():
     util.create_directory(constants.PATH_RESULTS)
     util.create_directory(constants.PATH_JSON)
 
-    process_image = ProcessImage(use_truss=True, pwd=constants.PATH_RESULTS, save=save)
+    process_image = ProcessImage(pwd=constants.PATH_RESULTS, save=save)
 
     for count, i_tomato in enumerate(range(i_start, i_end)):
         print("Analyzing image ID %d (%d/%d)" % (i_tomato, count + 1, N))

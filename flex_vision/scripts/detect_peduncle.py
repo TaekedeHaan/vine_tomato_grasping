@@ -36,8 +36,7 @@ def main():
 
         img_rgb = load_image(os.path.join(pwd_data, file_name), horizontal=True)
 
-        image = ProcessImage(use_truss=True,
-                             name=tomato_name,
+        image = ProcessImage(name=tomato_name,
                              pwd=pwd_results,
                              save=False)
 

@@ -3,11 +3,10 @@
 	<!-- Parameters to pass to the ROS node -->
 	<arg name="robot_name" 							default="iiwa"/>
 	<arg name="manipulator_group_name" 	default="manipulator"/>
-  <arg name="ee_group_name"           default="gripper"/>
+  	<arg name="ee_group_name"           default="gripper"/>
 	<arg name="planning_frame" 					default="world"/> <!-- world -->
 	<arg name="robot_base_frame" 				default="px150/base_link"/>
 
-	<!-- <arg name="use_truss" 							default="true"/> -->
 	<arg name="set_pid_controls"      default="true"/>
 	<arg name="gains_filepath"      default="$(find flex_grasp)/config/$(arg robot_name)_pid.yaml"/>
 	<rosparam if="$(arg set_pid_controls)"
@@ -40,8 +39,6 @@
 	</include>
 
 	<group ns="$(arg robot_name)">
-
-		<!-- <param name="use_truss" value="$(arg use_truss)"/> -->
 		<param name="planning_frame" value="$(arg planning_frame)"/>
 		<param name="manipulator_group_name" value="$(arg manipulator_group_name)"/>
 		<param name="ee_group_name" value="$(arg ee_group_name)"/>

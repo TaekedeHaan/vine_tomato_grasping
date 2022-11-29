@@ -35,7 +35,7 @@ def main():
 
         imRGB = load_image(os.path.join(constants.PATH_DATA, file_name), horizontal=True)
 
-        image = ProcessImage(use_truss=True)
+        image = ProcessImage()
 
         image.add_image(imRGB)
 

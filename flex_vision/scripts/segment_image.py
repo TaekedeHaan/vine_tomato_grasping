@@ -29,8 +29,7 @@ def main():
     pwd_results = os.path.join(pwd_root, "results", dataset)
 
     create_directory(pwd_results)
-    process_image = ProcessImage(use_truss=True,
-                                 pwd=pwd_results,
+    process_image = ProcessImage(pwd=pwd_results,
                                  save=save)
     radii = [None]  # [1.5]  # 0.5, 1.0, 1.5, 2.0, 3.0
 

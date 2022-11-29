@@ -35,7 +35,6 @@ class ProcessImage(object):
     name_space = 'main'  # used for timer
 
     def __init__(self,
-                 use_truss=True,
                  save=False,
                  pwd='',
                  name='tomato',
@@ -44,7 +43,6 @@ class ProcessImage(object):
 
         self.ext = ext
         self.save = save
-        self.use_truss = use_truss
         self.pwd = pwd
         self.name = name
 
