@@ -134,9 +134,9 @@ class ProcessImage(object):
             self.save_results(self.name, pwd=pwd)
 
         logger.debug("Successfully segmented the image into %.1f%% tomato, %.1f%% peduncle and %.1f%% background",
-                     100 * float(np.sum(self.tomato > 0)) / self.img_hue.size,
-                     100 * float(np.sum(self.peduncle > 0)) / self.img_hue.size,
-                     100 * float(np.sum(self.background > 0)) / self.img_hue.size)
+                     100 * float(np.count_nonzero(self.tomato)) / self.img_hue.size,
+                     100 * float(np.count_nonzero(self.peduncle)) / self.img_hue.size,
+                     100 * float(np.count_nonzero(self.background)) / self.img_hue.size)
         return success
 
     @Timer("filtering", name_space)
@@ -163,9 +163,9 @@ class ProcessImage(object):
         if self.save:
             self.save_results(self.name, pwd=pwd)
 
-        self.background_pixels = np.sum(self.background > 0)
-        self.tomato_pixels = np.sum(self.tomato > 0)
-        self.stem_pixels = np.sum(self.peduncle > 0)
+        self.background_pixels = np.count_nonzero(self.background)
+        self.tomato_pixels = np.count_nonzero(self.tomato)
+        self.stem_pixels = np.count_nonzero(self.peduncle)
 
         if not self.tomato_pixels:
             logger.warning("Failed to filter segments: no pixel has been classified as tomato")
@@ -176,7 +176,7 @@ class ProcessImage(object):
             return False
 
         logger.debug("Successfully filtered %d pixels from the tomate segment and %d pixels from the peduncle segment",
-                     np.sum(tomato > 0) - self.tomato_pixels, np.sum(peduncle > 0) - self.stem_pixels)
+                     np.count_nonzero(tomato) - self.tomato_pixels, np.count_nonzero(peduncle) - self.stem_pixels)
         return True
 
     @Timer("cropping", name_space)
@@ -312,8 +312,10 @@ class ProcessImage(object):
             if branch['length'] > minimum_grasp_length_px:
                 src_node_dist = branch['src_node_coord'].dist(branch['coords'])
                 dst_node_dist = branch['dst_node_coord'].dist(branch['coords'])
-                is_true = np.logical_and((np.array(dst_node_dist) > 0.5 * minimum_grasp_length_px), (
-                    np.array(src_node_dist) > 0.5 * minimum_grasp_length_px))
+                is_true = np.logical_and(
+                    (np.array(dst_node_dist) > 0.5 * minimum_grasp_length_px),
+                    (np.array(src_node_dist) > 0.5 * minimum_grasp_length_px)
+                )
 
                 branch_points_keep = np.array(branch['coords'])[is_true].tolist()
                 points_keep.extend(branch_points_keep)
@@ -333,7 +335,7 @@ class ProcessImage(object):
         grasp_point = points_keep[i_grasp]
         branch_i = branches_i[i_grasp]
 
-        grasp_angle_local = np.deg2rad(self.branch_data['junction-junction'][branch_i]['angle'])
+        grasp_angle_local = math.radians(self.branch_data['junction-junction'][branch_i]['angle'])
         grasp_angle_global = -self.angle + grasp_angle_local
 
         self.grasp_point = grasp_point

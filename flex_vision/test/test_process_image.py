@@ -42,7 +42,6 @@ class TestProcessImage(unittest.TestCase):
         util.plot_truss(tomato=tomatoes, peduncle=peduncle)
         util.clear_axis()
         image = util.figure_to_image(plt.gcf())
-        print(image.shape)
 
         # process the generated image
         process_image.add_image(image, px_per_mm=px_per_mm, name='test')
@@ -76,9 +75,6 @@ class TestProcessImage(unittest.TestCase):
 
         self.assertAlmostEqual(radii_prediction[0], 116.59999847)
         self.assertAlmostEqual(radii_prediction[1], 147.3999939)
-
-        print(features_prediction['peduncle']['ends'])
-        print(features_prediction['peduncle']['junctions'])
 
         self.assertAlmostEqual(features_prediction['peduncle']['ends'][0][0], 619.7435385686285)
         self.assertAlmostEqual(features_prediction['peduncle']['ends'][0][1], 425.93113615343884)
