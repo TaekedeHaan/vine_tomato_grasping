@@ -34,13 +34,7 @@ class ProcessImage(object):
 
     name_space = 'main'  # used for timer
 
-    def __init__(self,
-                 save=False,
-                 pwd='',
-                 name='tomato',
-                 ext='pdf'
-                 ):
-
+    def __init__(self, save=False, pwd='', name='tomato', ext='pdf'):
         self.ext = ext
         self.save = save
         self.pwd = pwd
@@ -58,10 +52,6 @@ class ProcessImage(object):
         self.grasp_point = None
         self.grasp_angle_local = None
         self.grasp_angle_global = None
-
-        self.background_pixels = 0
-        self.tomato_pixels = 0
-        self.stem_pixels = 0
 
         self.settings = settings.initialize_all()
 
@@ -161,20 +151,19 @@ class ProcessImage(object):
         if self.save:
             self.save_results(self.name, pwd=pwd)
 
-        self.background_pixels = np.count_nonzero(self.background)
-        self.tomato_pixels = np.count_nonzero(self.tomato)
-        self.stem_pixels = np.count_nonzero(self.peduncle)
-
-        if not self.tomato_pixels:
+        if not np.count_nonzero(self.tomato):
             logger.warning("Failed to filter segments: no pixel has been classified as tomato")
             return False
 
-        if not self.stem_pixels:
+        if not np.count_nonzero(self.peduncle):
             logger.warning("Failed to filter segments: no pixel has been classified as stem")
             return False
 
-        logger.debug("Successfully filtered %d pixels from the tomate segment and %d pixels from the peduncle segment",
-                     np.count_nonzero(tomato) - self.tomato_pixels, np.count_nonzero(peduncle) - self.stem_pixels)
+        logger.debug("Successfully filtered segments into %.1f%% tomato, %.1f%% peduncle and %.1f%% background",
+                     100 * float(np.count_nonzero(self.tomato)) / self.tomato.size,
+                     100 * float(np.count_nonzero(self.peduncle)) / self.tomato.size,
+                     100 * float(np.count_nonzero(self.background)) / self.tomato.size)
+
         return True
 
     @Timer("cropping", name_space)

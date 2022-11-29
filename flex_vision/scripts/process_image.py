@@ -56,11 +56,6 @@ def main():
         util.plot_timer(Timer.timers['main'].copy(), threshold=0.02, pwd=constants.PATH_RESULTS, name='main', title='Processing time',
                         startangle=-20)
 
-    total_pixels = process_image.background_pixels + process_image.tomato_pixels + process_image.stem_pixels
-    print(float(process_image.background_pixels)/total_pixels)
-    print(float(process_image.tomato_pixels) / total_pixels)
-    print(float(process_image.stem_pixels) / total_pixels)
-
     total_key = "process image"
     time_tot_mean = np.mean(Timer.timers[total_key]) / 1000
     time_tot_std = np.std(Timer.timers[total_key]) / 1000
