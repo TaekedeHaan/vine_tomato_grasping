@@ -10,42 +10,32 @@ import os
 import cv2
 
 # Flex vision imports
+from flex_vision import constants
 from flex_vision.utils.util import change_brightness
 from flex_vision.utils.util import create_directory, load_image
 from flex_vision.detect_truss import settings
-from flex_vision.detect_truss.ProcessImage import ProcessImage
+from flex_vision.detect_truss.process_image import ProcessImage
 from flex_vision.detect_truss.detect_tomato import detect_tomato
 
 
 def main():
-    i_start = 1
-    i_end = 22
+    i_start = 3
+    i_end = 4
     N = i_end - i_start + 1
 
-    drive = "backup"  # "UBUNTU 16_0"  #
-    pwd_root = os.path.join(os.sep, "media", "taeke", drive, "thesis_data",
-                            "flex_vision")
-    dataset = "lidl"
-
-    pwd_data = os.path.join(pwd_root, "data", dataset)
-
-    pwd_results = os.path.join(pwd_root, "results", dataset, "05_tomatoes")
-
-    create_directory(pwd_data)
-    create_directory(pwd_results)
-
+    create_directory(constants.PATH_RESULTS)
     brightness = 0.85
 
-    for count, i_tomato in enumerate(range(i_start, i_end + 1)):
+    for count, i_tomato in enumerate(range(i_start, i_end)):
         print("Analyzing image %d out of %d" % (count + 1, N))
 
         tomatoID = str(i_tomato).zfill(3)
         tomato_name = tomatoID
         file_name = tomato_name + ".png"
 
-        imRGB = load_image(os.path.join(pwd_data, file_name), horizontal=True)
+        imRGB = load_image(os.path.join(constants.PATH_DATA, file_name), horizontal=True)
 
-        image = ProcessImage(use_truss=True)
+        image = ProcessImage()
 
         image.add_image(imRGB)
 
@@ -55,7 +45,7 @@ def main():
         image.rotate_cut_img()
 
         # set parameters
-        settings = settings.detect_tomato()
+        detect_tomato_settings = settings.detect_tomato()
 
         img_rgb = image.get_rgb(local=True)
         img_rgb_bright = change_brightness(img_rgb, brightness)
@@ -64,10 +54,10 @@ def main():
         image_gray = cv2.bitwise_or(image_tomato, image_peduncle)
 
         centers, radii, com = detect_tomato(image_gray,
-                                            settings,
+                                            detect_tomato_settings,
                                             img_rgb=img_rgb,
                                             save=True,
-                                            pwd=pwd_results,
+                                            pwd=constants.PATH_RESULTS,
                                             name=tomato_name)
 
 

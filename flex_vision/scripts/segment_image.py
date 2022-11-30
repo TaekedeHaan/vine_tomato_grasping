@@ -29,8 +29,7 @@ def main():
     pwd_results = os.path.join(pwd_root, "results", dataset)
 
     create_directory(pwd_results)
-    process_image = ProcessImage(use_truss=True,
-                                 pwd=pwd_results,
+    process_image = ProcessImage(pwd=pwd_results,
                                  save=save)
     radii = [None]  # [1.5]  # 0.5, 1.0, 1.5, 2.0, 3.0
 
@@ -44,7 +43,7 @@ def main():
 
             img_rgb = load_image(os.path.join(pwd_data, file_name), horizontal=True)
             process_image.add_image(img_rgb, name=tomato_name)
-            process_image.color_space(compute_a=True)
+            process_image.color_space()
             process_image.segment_image(radius=radius)
             process_image.filter_image(folder_name=str(radius))
             count = count + 1

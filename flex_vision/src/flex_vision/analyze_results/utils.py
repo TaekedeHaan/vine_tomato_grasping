@@ -5,14 +5,13 @@ import json
 def main():
     i_start = 1
     i_end = 85
-    n = i_end - i_start
 
     key = 'imageData'
     path_root = os.path.join(os.sep, "media", "taeke", "backup", "thesis_data", "detect_truss")
     path = os.path.join(path_root, "data", "lidl")
 
     file_names = []
-    for count, i_truss in enumerate(range(i_start, i_end)):
+    for i_truss in range(i_start, i_end):
         truss_name = str(i_truss).zfill(3)
         file_name = os.path.join(path, truss_name + '.json')
         file_names.append(file_name)

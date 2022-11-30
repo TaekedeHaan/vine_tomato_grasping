@@ -1,7 +1,8 @@
 #!/usr/bin/env python2
 import json
 import os
-import warnings
+import logging
+import math
 
 # External imports
 import numpy as np
@@ -17,62 +18,72 @@ from flex_vision.utils.util import save_img, save_fig, figure_to_image
 from flex_vision.utils.util import stack_segments, change_brightness
 from flex_vision.utils.util import plot_grasp_location, plot_image, plot_features, plot_segments
 
-from filter_segments import filter_segments
-from detect_peduncle_2 import detect_peduncle, visualize_skeleton
-from detect_tomato import detect_tomato
-from segment_image import segment_truss
-import settings
+from flex_vision.detect_truss.filter_segments import filter_segments
+from flex_vision.detect_truss.detect_peduncle_2 import detect_peduncle, visualize_skeleton
+from flex_vision.detect_truss.detect_tomato import detect_tomato
+from flex_vision.detect_truss.segment_image import segment_truss
+from flex_vision.detect_truss import settings
 
-warnings.filterwarnings('error', category=FutureWarning)
+logger = logging.getLogger(__name__)
 
 
 class ProcessImage(object):
-    version = '0.1'
-
     # frame ids
     ORIGINAL_FRAME_ID = 'original'
     LOCAL_FRAME_ID = 'local'
 
     name_space = 'main'  # used for timer
 
-    def __init__(self,
-                 use_truss=True,
-                 save=False,
-                 pwd='',
-                 name='tomato',
-                 ext='pdf'
-                 ):
-
+    def __init__(self, save=False, pwd='', name='tomato', ext='pdf'):
         self.ext = ext
         self.save = save
-        self.use_truss = use_truss
         self.pwd = pwd
         self.name = name
 
-        self.scale = None
         self.img_rgb = None
         self.shape = None
         self.px_per_mm = None
 
+        # color space
+        self.img_a = None
+        self.img_hue = None
+
+        # segments
         self.background = None
         self.tomato = None
         self.peduncle = None
 
+        # crop
+        self.bbox = None
+        self.angle = 0.0
+        self.transform = Transform(self.ORIGINAL_FRAME_ID, self.LOCAL_FRAME_ID)  # identity
+
+        self.truss_crop = None
+        self.tomato_crop = None
+        self.peduncle_crop = None
+        self.img_rgb_crop = None
+
+        # tomatoes
+        self.centers = None
+        self.radii = None
+        self.com = None
+
+        # stem
+        self.junction_points = None
+        self.end_points = None
+        self.peduncle_points = None
+        self.branch_data = None
+
+        # grasp location
         self.grasp_point = None
         self.grasp_angle_local = None
         self.grasp_angle_global = None
-
-        self.background_pixels = 0
-        self.tomato_pixels = 0
-        self.stem_pixels = 0
 
         self.settings = settings.initialize_all()
 
     def add_image(self, img_rgb, px_per_mm=None, name=None):
 
         # TODO: scaling is currently not supported, would be interesting to reduce computing power
-
-        self.scale = 1.0
         self.img_rgb = img_rgb
         self.shape = img_rgb.shape[:2]
         self.px_per_mm = px_per_mm
@@ -85,7 +96,7 @@ class ProcessImage(object):
             self.name = name
 
     @Timer("color space", name_space)
-    def color_space(self, compute_a=True):
+    def color_space(self):
         pwd = os.path.join(self.pwd, '01_color_space')
         self.img_hue = cv2.cvtColor(self.img_rgb, cv2.COLOR_RGB2HSV)[:, :, 0]
         self.img_a = cv2.cvtColor(self.img_rgb, cv2.COLOR_RGB2LAB)[:, :, 1]  # L: 0 to 255, a: 0 to 255, b: 0 to 255
@@ -123,17 +134,21 @@ class ProcessImage(object):
         self.tomato = tomato
         self.peduncle = peduncle
 
-        if self.tomato.sum() == 0:
-            warnings.warn("Segment truss: no pixel has been classified as tomato!")
+        if not self.tomato.any():
+            logger.warning("Failed to segment image: no pixel has been classified as tomato")
             success = False
 
-        if self.peduncle.sum() == 0:
-            warnings.warn("Segment truss: no pixel has been classified as peduncle!")
+        if not self.peduncle.any():
+            logger.warning("Failed to segment image: no pixel has been classified as peduncle")
             success = False
 
         if self.save:
             self.save_results(self.name, pwd=pwd)
 
+        logger.debug("Successfully segmented the image into %.1f%% tomato, %.1f%% peduncle and %.1f%% background",
+                     100 * float(np.count_nonzero(self.tomato)) / self.img_hue.size,
+                     100 * float(np.count_nonzero(self.peduncle)) / self.img_hue.size,
+                     100 * float(np.count_nonzero(self.background)) / self.img_hue.size)
         return success
 
     @Timer("filtering", name_space)
@@ -147,25 +162,31 @@ class ProcessImage(object):
         if folder_name is not None:
             pwd = os.path.join(pwd, folder_name)
 
-        tomato, peduncle, background = filter_segments(self.tomato,
-                                                       self.peduncle,
-                                                       self.background,
-                                                       settings=self.settings['filter_segments'])
+        # Store member locally such that they can be compared
+        tomato = self.tomato
+        peduncle = self.peduncle
+        background = self.background
 
-        self.tomato = tomato
-        self.peduncle = peduncle
-        self.background = background
-
-        self.background_pixels = np.sum(background)
-        self.tomato_pixels = np.sum(tomato)
-        self.stem_pixels = np.sum(peduncle)
+        self.tomato, self.peduncle, self.background = filter_segments(tomato,
+                                                                      peduncle,
+                                                                      background,
+                                                                      settings=self.settings['filter_segments'])
 
         if self.save:
             self.save_results(self.name, pwd=pwd)
 
-        if self.tomato.sum() == 0:
-            warnings.warn("filter segments: no pixel has been classified as tomato")
+        if not np.count_nonzero(self.tomato):
+            logger.warning("Failed to filter segments: no pixel has been classified as tomato")
             return False
+
+        if not np.count_nonzero(self.peduncle):
+            logger.warning("Failed to filter segments: no pixel has been classified as stem")
+            return False
+
+        logger.debug("Successfully filtered segments into %.1f%% tomato, %.1f%% peduncle and %.1f%% background",
+                     100 * float(np.count_nonzero(self.tomato)) / self.tomato.size,
+                     100 * float(np.count_nonzero(self.peduncle)) / self.tomato.size,
+                     100 * float(np.count_nonzero(self.background)) / self.tomato.size)
 
         return True
 
@@ -174,9 +195,9 @@ class ProcessImage(object):
         """crop the image"""
         pwd = os.path.join(self.pwd, '04_crop')
 
-        if self.peduncle.sum() == 0:
-            warnings.warn("Cannot rotate based on peduncle, since it does not exist!")
-            angle = 0
+        if not self.peduncle.sum():
+            logger.warning("Cannot rotate based on peduncle since it is empty")
+            angle = 0.0
         else:
             angle = imgpy.compute_angle(self.peduncle)  # [rad]
 
@@ -184,8 +205,8 @@ class ProcessImage(object):
         peduncle_rotate = imgpy.rotate(self.peduncle, -angle)
         truss_rotate = imgpy.add(tomato_rotate, peduncle_rotate)
 
-        if truss_rotate.sum() == 0:
-            warnings.warn("Cannot crop based on truss segment, since it does not exist!")
+        if not truss_rotate.sum():
+            logger.warning("Cannot crop based on truss segment since it is empty")
             return False
 
         bbox = imgpy.bbox(truss_rotate)
@@ -202,8 +223,9 @@ class ProcessImage(object):
 
         self.tomato_crop = imgpy.cut(tomato_rotate, self.bbox)
         self.peduncle_crop = imgpy.cut(peduncle_rotate, self.bbox)
-        self.img_rgb_crop = imgpy.crop(self.img_rgb, angle=-angle, bbox=bbox)
+        self.img_rgb_crop = imgpy.crop(self.img_rgb, angle=-angle, bounding_box=bbox)
         self.truss_crop = imgpy.cut(truss_rotate, self.bbox)
+        logger.debug("Successfully cropped image")
 
         if self.save:
             img_rgb = self.get_rgb(local=True)
@@ -215,19 +237,14 @@ class ProcessImage(object):
         """detect tomatoes based on the truss segment"""
         pwd = os.path.join(self.pwd, '05_tomatoes')
 
-        if self.truss_crop.sum() == 0:
-            warnings.warn("Detect tomato: no pixel has been classified as truss!")
+        if not self.truss_crop.sum():
+            logger.warning("Cannot detect tomatoes: no pixel has been classified as truss")
             return False
-
-        if self.save:
-            img_bg = self.img_rgb_crop
-        else:
-            img_bg = self.img_rgb_crop
 
         centers, radii, com = detect_tomato(self.truss_crop,
                                             self.settings['detect_tomato'],
                                             px_per_mm=self.px_per_mm,
-                                            img_rgb=img_bg,
+                                            img_rgb=self.img_rgb_crop,
                                             save=self.save,
                                             pwd=pwd,
                                             name=self.name)
@@ -237,17 +254,17 @@ class ProcessImage(object):
         self.centers = points_from_coords(centers, self.LOCAL_FRAME_ID, self.transform)
         self.com = Point2D(com, self.LOCAL_FRAME_ID, self.transform)
 
-        if self.com is None:
+        if centers is None or not centers.any():
+            logger.warning("Failed to detect any tomatoes in image %s", self.name)
             return False
         else:
+            logger.debug("Successfully detected %d tomatoes in image %s", len(radii), self.name)
             return True
 
     @Timer("peduncle detection", name_space)
     def detect_peduncle(self):
         """Detect the peduncle and junctions"""
         pwd = os.path.join(self.pwd, '06_peduncle')
-        success = True
-
         if self.save:
             img_bg = change_brightness(self.get_segmented_image(local=True), 0.85)
         else:
@@ -261,10 +278,11 @@ class ProcessImage(object):
                                                                      name=self.name,
                                                                      pwd=pwd)
         # convert to 2D points
-        peduncle_points = points_from_coords(np.argwhere(mask)[:, (1, 0)], self.LOCAL_FRAME_ID, self.transform)
-        junction_points = points_from_coords(junc_coords, self.LOCAL_FRAME_ID, self.transform)
-        end_points = points_from_coords(end_coords, self.LOCAL_FRAME_ID, self.transform)
+        self.peduncle_points = points_from_coords(np.argwhere(mask)[:, (1, 0)], self.LOCAL_FRAME_ID, self.transform)
+        self.junction_points = points_from_coords(junc_coords, self.LOCAL_FRAME_ID, self.transform)
+        self.end_points = points_from_coords(end_coords, self.LOCAL_FRAME_ID, self.transform)
 
+        # extract branch data
         for branch_type in branch_data:
             for i, branch in enumerate(branch_data[branch_type]):
                 for lbl in ['coords', 'src_node_coord', 'dst_node_coord', 'center_node_coord']:
@@ -275,25 +293,29 @@ class ProcessImage(object):
                     else:
                         branch_data[branch_type][i][lbl] = Point2D(branch[lbl], self.LOCAL_FRAME_ID, self.transform)
 
-        self.junction_points = junction_points
-        self.end_points = end_points
-        self.peduncle_points = peduncle_points
         self.branch_data = branch_data
-        return success
+
+        # log result depending on whether any peduncle points have been detected
+        if self.peduncle_points:
+            logger.debug("Successfully detected peduncle consisting of %d points with %d junctions and %d ends",
+                         len(self.peduncle_points), len(self.junction_points), len(self.end_points))
+            return True
+        else:
+            logger.warning("Failed to detect any peduncle points")
+            return False
 
     @Timer("detect grasp location", name_space)
     def detect_grasp_location(self):
         """Determine grasp location based on peduncle, junction and com information"""
         pwd = os.path.join(self.pwd, '07_grasp')
-        success = True
 
-        settings = self.settings['compute_grasp']
+        grasp_settings = self.settings['compute_grasp']
 
         # set dimensions
         if self.px_per_mm is not None:
-            minimum_grasp_length_px = self.px_per_mm * settings['grasp_length_min_mm']
+            minimum_grasp_length_px = self.px_per_mm * grasp_settings['grasp_length_min_mm']
         else:
-            minimum_grasp_length_px = settings['grasp_length_min_px']
+            minimum_grasp_length_px = grasp_settings['grasp_length_min_px']
 
         points_keep = []
         branches_i = []
@@ -301,77 +323,78 @@ class ProcessImage(object):
             if branch['length'] > minimum_grasp_length_px:
                 src_node_dist = branch['src_node_coord'].dist(branch['coords'])
                 dst_node_dist = branch['dst_node_coord'].dist(branch['coords'])
-                is_true = np.logical_and((np.array(dst_node_dist) > 0.5 * minimum_grasp_length_px), (
-                    np.array(src_node_dist) > 0.5 * minimum_grasp_length_px))
+                is_true = np.logical_and(
+                    (np.array(dst_node_dist) > 0.5 * minimum_grasp_length_px),
+                    (np.array(src_node_dist) > 0.5 * minimum_grasp_length_px)
+                )
 
                 branch_points_keep = np.array(branch['coords'])[is_true].tolist()
                 points_keep.extend(branch_points_keep)
                 branches_i.extend([branch_i] * len(branch_points_keep))
 
-        if len(branches_i) > 0:
-            i_grasp = np.argmin(self.com.dist(points_keep))
-            grasp_point = points_keep[i_grasp]
-            branch_i = branches_i[i_grasp]
-
-            grasp_angle_local = np.deg2rad(self.branch_data['junction-junction'][branch_i]['angle'])
-            grasp_angle_global = -self.angle + grasp_angle_local
-
-            self.grasp_point = grasp_point
-            self.grasp_angle_local = grasp_angle_local
-            self.grasp_angle_global = grasp_angle_global
-
-        else:
-            warnings.warn('Did not detect a valid grasping branch')
+        if not branches_i:
+            logger.warning("Failed to detect a valid grasping branch")
 
             if self.save:
-                img_rgb = self.img_rgb_crop
-                save_img(img_rgb, pwd=pwd, name=self.name)
-                img_rgb = self.img_rgb
-                save_img(img_rgb, pwd=pwd, name=self.name + '_g')
+                save_img(self.img_rgb_crop, pwd=pwd, name=self.name)
+                save_img(self.img_rgb, pwd=pwd, name=self.name + '_g')
+
             return False
 
-        if self.save:
-            open_dist_px = settings['open_dist_mm'] * self.px_per_mm
-            finger_thickness_px = settings['finger_thinkness_mm'] * self.px_per_mm
-            brightness = 0.85
+        # Select optimal grasp location
+        i_grasp = np.argmin(self.com.dist(points_keep))
+        grasp_point = points_keep[i_grasp]
+        branch_i = branches_i[i_grasp]
 
-            for frame_id in [self.LOCAL_FRAME_ID, self.ORIGINAL_FRAME_ID]:
-                grasp_coord = self.grasp_point.get_coord(frame_id)
+        grasp_angle_local = math.radians(self.branch_data['junction-junction'][branch_i]['angle'])
+        grasp_angle_global = -self.angle + grasp_angle_local
 
-                if frame_id == self.LOCAL_FRAME_ID:
-                    grasp_angle = self.grasp_angle_local
-                    img_rgb = self.img_rgb_crop
+        self.grasp_point = grasp_point
+        self.grasp_angle_local = grasp_angle_local
+        self.grasp_angle_global = grasp_angle_global
+        logger.debug("Successfully determined grasp location at x: %dpx, y: %dpx with angle %.1fdeg",
+                     grasp_point.coord[0], grasp_point.coord[1], math.degrees(grasp_angle_local))
 
-                elif frame_id == self.ORIGINAL_FRAME_ID:
-                    grasp_angle = self.grasp_angle_global
-                    img_rgb = self.img_rgb
+        if not self.save:
+            return True
 
-                img_rgb_bright = change_brightness(img_rgb, brightness)
-                branch_image = np.zeros(img_rgb_bright.shape[0:2], dtype=np.uint8)
-                coords = np.rint(coords_from_points(points_keep, frame_id)).astype(np.int)
-                branch_image[coords[:, 1], coords[:, 0]] = 255
+        open_dist_px = grasp_settings['open_dist_mm'] * self.px_per_mm
+        finger_thickness_px = grasp_settings['finger_thinkness_mm'] * self.px_per_mm
+        brightness = 0.85
 
-                if frame_id == self.ORIGINAL_FRAME_ID:
-                    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-                    branch_image = cv2.dilate(branch_image, kernel, iterations=1)
+        for frame_id in [self.LOCAL_FRAME_ID, self.ORIGINAL_FRAME_ID]:
+            grasp_coord = self.grasp_point.get_coord(frame_id)
 
-                visualize_skeleton(img_rgb_bright, branch_image, show_nodes=False, skeleton_color=(0, 0, 0),
-                                   skeleton_width=4)
-                plot_grasp_location(grasp_coord, grasp_angle, finger_width=minimum_grasp_length_px,
-                                    finger_thickness=finger_thickness_px, finger_dist=open_dist_px, pwd=pwd,
-                                    name=self.name + '_' + frame_id, linewidth=3)
+            if frame_id == self.LOCAL_FRAME_ID:
+                grasp_angle = self.grasp_angle_local
+                img_rgb = self.img_rgb_crop
 
-        return success
+            elif frame_id == self.ORIGINAL_FRAME_ID:
+                grasp_angle = self.grasp_angle_global
+                img_rgb = self.img_rgb
+
+            img_rgb_bright = change_brightness(img_rgb, brightness)
+            branch_image = np.zeros(img_rgb_bright.shape[0:2], dtype=np.uint8)
+            coords = np.rint(coords_from_points(points_keep, frame_id)).astype(np.int)
+            branch_image[coords[:, 1], coords[:, 0]] = 255
+
+            if frame_id == self.ORIGINAL_FRAME_ID:
+                kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+                branch_image = cv2.dilate(branch_image, kernel, iterations=1)
+
+            visualize_skeleton(img_rgb_bright, branch_image, show_nodes=False, skeleton_color=(0, 0, 0),
+                               skeleton_width=4)
+            plot_grasp_location(grasp_coord, grasp_angle, finger_width=minimum_grasp_length_px,
+                                finger_thickness=finger_thickness_px, finger_dist=open_dist_px, pwd=pwd,
+                                name=self.name + '_' + frame_id, linewidth=3)
+
+        return True
 
     def crop(self, image):
-        return imgpy.crop(image, angle=-self.angle, bbox=self.bbox)
+        return imgpy.crop(image, angle=-self.angle, bounding_box=self.bbox)
 
     def get_tomatoes(self, local=False):
-        if local:
-            target_frame_id = self.LOCAL_FRAME_ID
-        else:
-            target_frame_id = self.ORIGINAL_FRAME_ID
-
+        target_frame_id = self.LOCAL_FRAME_ID if local else self.ORIGINAL_FRAME_ID
         if self.centers is None:
             radii = []
             xy_centers = [[]]
@@ -453,7 +476,7 @@ class ProcessImage(object):
         com = coords_from_points(self.com, frame)
 
         tomato = {'centers': centers, 'radii': self.radii, 'com': com}
-        plot_features(img_rgb, tomato=tomato, zoom=True)
+        plot_features(img_rgb, tomato=tomato, zoom=zoom)
         return figure_to_image(plt.gcf())
 
     def get_rgb(self, local=False):
@@ -498,13 +521,13 @@ class ProcessImage(object):
         visualize_skeleton(img, arr, coord_junc=xy_junc, show_img=False, skeleton_width=skeleton_width)
 
         if (grasp["xy"] is not None) and (grasp["angle"] is not None):
-            settings = self.settings['compute_grasp']
+            grasp_settings = self.settings['compute_grasp']
             if self.px_per_mm is not None:
-                minimum_grasp_length_px = self.px_per_mm * settings['grasp_length_min_mm']
-                open_dist_px = settings['open_dist_mm'] * self.px_per_mm
-                finger_thickenss_px = settings['finger_thinkness_mm'] * self.px_per_mm
+                minimum_grasp_length_px = self.px_per_mm * grasp_settings['grasp_length_min_mm']
+                open_dist_px = grasp_settings['open_dist_mm'] * self.px_per_mm
+                finger_thickenss_px = grasp_settings['finger_thinkness_mm'] * self.px_per_mm
             else:
-                minimum_grasp_length_px = settings['grasp_length_min_px']
+                minimum_grasp_length_px = grasp_settings['grasp_length_min_px']
             plot_grasp_location(grasp["xy"], grasp["angle"], finger_width=minimum_grasp_length_px,
                                 finger_thickness=finger_thickenss_px, finger_dist=open_dist_px, linewidth=grasp_linewidth)
 
@@ -557,45 +580,45 @@ class ProcessImage(object):
 
         success = self.segment_image()
         if success is False:
-            print "Failed to segment image"
+            logger.warning("Failed to process image: failed to segment image")
             return success
 
         success = self.filter_image()
         if success is False:
-            print "Failed to filter image"
+            logger.warning("Failed to process image: failed to filter image")
             return success
 
         success = self.rotate_cut_img()
         if success is False:
-            print "Failed to crop image"
+            logger.warning("Failed to process image: failed to crop image")
             return success
 
         success = self.detect_tomatoes()
         if success is False:
-            print "Failed to detect tomatoes"
+            logger.warning("Failed to process image: failed to detect tomatoes")
             return success
 
         success = self.detect_peduncle()
         if success is False:
-            print "Failed to detect peduncle"
+            logger.warning("Failed to process image: failed to detect peduncle")
             return success
 
         success = self.detect_grasp_location()
         if success is False:
-            print "Failed to detect grasp location"
+            logger.warning("Failed to process image: failed to detect grasp location")
         return success
 
     def get_settings(self):
         return self.settings
 
-    def set_settings(self, settings):
+    def set_settings(self, my_settings):
         """
         Overwrites the settings which are present in the given dict
         """
 
-        for key_1 in settings:
-            for key_2 in settings[key_1]:
-                self.settings[key_1][key_2] = settings[key_1][key_2]
+        for key_1 in my_settings:
+            for key_2 in my_settings[key_1]:
+                self.settings[key_1][key_2] = my_settings[key_1][key_2]
 
 
 def load_px_per_mm(pwd, img_id):

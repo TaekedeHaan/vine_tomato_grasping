@@ -8,11 +8,10 @@ import os
 from typing import TYPE_CHECKING
 
 # External imports
-import copy
 import cv2
 import matplotlib as mpl
 import numpy as np
-import warnings
+from copy import deepcopy
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
@@ -21,6 +20,7 @@ from flex_vision import constants
 from flex_vision.utils import color_maps
 
 if TYPE_CHECKING:
+    # pylint: disable=unused-import
     import typing
 
 ee_color = (255, 150, 0)
@@ -156,7 +156,7 @@ def change_brightness(image, brightness, copy=True):
     if -1 < brightness < 0:
         return image - (image ** -brightness).astype(np.uint8)
 
-    raise ValueError("Brightness of %f is invalid, please provide a value within range [-1.0, 1.0]", brightness)
+    raise ValueError("Brightness of %f is invalid, please provide a value within range [-1.0, 1.0]" % brightness)
 
 
 def angular_difference(alpha, beta):
@@ -236,7 +236,7 @@ def stack_segments(image, background, tomato, peduncle, use_image_colours=True):
     return res.reshape(image.shape)
 
 
-def grey_2_rgb(image, vmin=0, vmax=255, cmap=mpl.cm.hot):
+def grey_2_rgb(image, vmin=0, vmax=255, cmap=mpl.cm.hot):  # pylint: disable=no-member
     # type: (np.typing.ArrayLike, int, int, mpl.colors.LinearSegmentedColormap) -> np.typing.ArrayLike
     """ Convert a grey scale image to an RGB image.
 
@@ -294,7 +294,7 @@ def save_img(image,                           # type: np.typing.ArrayLike
     fig.add_axes(ax)
     ax.imshow(image, cmap=color_map, vmin=vmin, vmax=vmax)
     # plt.axis('off')
-    if title is not None:
+    if title:
         plt.title(title)
 
     # https://stackoverflow.com/a/27227718
@@ -364,11 +364,11 @@ def plot_segments(img_rgb, background, tomato, peduncle, fig=None, show_backgrou
     add_contour(tomato, color=tomato_color, linewidth=linewidth)
     add_contour(peduncle, color=peduncle_color, linewidth=linewidth)
 
-    if title is not None:
+    if title:
         plt.title(title)
 
     if pwd is not None:
-        save_fig(fig, pwd, name, title=title)
+        save_fig(fig, pwd, name)
 
     return fig
 
@@ -378,7 +378,7 @@ def plot_image(img, show_axis=False, animated=False, nrows=1, ncols=1):
         plot image
     """
     sizes = np.shape(img)
-    fig = plt.figure()
+    fig = plt.figure(dpi=constants.DPI)
     fig.set_size_inches(LINEWIDTH, LINEWIDTH * float(sizes[0]) / float(sizes[1]), forward=False)
 
     # if multiple axes are desired we add them using gridspec
@@ -425,11 +425,11 @@ def plot_truss(img_rgb=None, tomato=None, peduncle=None):
 
     if peduncle:
         add_lines(peduncle['centers'], peduncle['angles'],
-                  lengths=peduncle['length'], color=peduncle_color, linewidth=20)
+                  lengths=peduncle['length'], color=peduncle_color, linewidth=5)
 
 
 def plot_features(img_rgb=None, tomato=None, peduncle=None, grasp=None,
-                  alpha=0.4, linewidth=1, zoom=False, pwd=None, file_name=None, title=""):
+                  alpha=0.4, zoom=False, pwd=None, file_name=None):
 
     if img_rgb is not None:
         plot_image(img_rgb)
@@ -500,8 +500,11 @@ def plot_features_result(img_rgb, tomato_pred=None, peduncle=None, grasp=None, a
         angle = grasp['angle']
         plot_grasp_location([[col, row]], angle, finger_width=20, finger_thickness=15, linewidth=2)
 
+    if title:
+        plt.title(title)
+
     if pwd is not None:
-        save_fig(fig, pwd, name, title=title)
+        save_fig(fig, pwd, name)
 
 
 def plot_timer(timer_dict, N=1, threshold=0, ignore_key=None, pwd=None, name='time', title='time', startangle=-45):
@@ -560,7 +563,7 @@ def donut(data, labels, pwd=None, name=None, title=None, startangle=-45):
 
     fig, ax = plt.subplots(figsize=(6, 3), subplot_kw=dict(aspect="equal"))
 
-    wedges, texts = ax.pie(data, wedgeprops=dict(width=0.5), startangle=startangle)
+    wedges, _ = ax.pie(data, wedgeprops=dict(width=0.5), startangle=startangle)
 
     bbox_props = dict(boxstyle="round,pad=0.3", fc=[0.92, 0.92, 0.92], lw=0)  # square, round
     kw = dict(arrowprops=dict(arrowstyle="-"),
@@ -632,8 +635,11 @@ def plot_grasp_location(loc, angle, finger_width=20, finger_thickness=10, finger
     add_rectangle(xy_rot, finger_thickness, finger_width, angle=np.rad2deg(rot_angle), ec=ee_color,
                   fc=ee_color, alpha=0.4, linewidth=linewidth, zorder=middle_layer)
 
+    if title:
+        plt.title(title)
+
     if pwd is not None:
-        save_fig(plt.gcf(), pwd, name, title=title)
+        save_fig(plt.gcf(), pwd, name)
 
 
 def plot_error(tomato_pred, tomato_act, error,
@@ -647,7 +653,7 @@ def plot_error(tomato_pred, tomato_act, error,
     fig = plt.gcf()
     ax = plt.gca()
 
-    if title is not None:
+    if title:
         plt.title(title)
 
     if use_mm:
@@ -722,7 +728,7 @@ def plot_error(tomato_pred, tomato_act, error,
     for center, error_center, error_radius, label in zip(centers, error_centers, error_radii, labels):
 
         # copy default style
-        kw = copy.deepcopy(kw_default)
+        kw = deepcopy(kw_default)
 
         if label == 'true_pos':
 
@@ -810,7 +816,7 @@ def add_com(center, radius=5):
     center = np.array(center, ndmin=2)
 
     pwd = os.path.dirname(__file__)
-    pwd_img = os.path.join(pwd, '..', 'images')
+    pwd_img = os.path.join(pwd, '..', '..', '..', 'images')
     img = mpl.image.imread(os.path.join(pwd_img, 'com.png'))
 
     com_radius, _, _ = img.shape
@@ -823,17 +829,8 @@ def add_com(center, radius=5):
     ax.add_artist(ab)
 
 
-def add_strings(strings, locations):
-    """
-    Add strings to current axis
-    locations -- [col, row]
-    """
-    for string, location in zip(strings, locations):
-        plt.text(location[0], location[1], string)
-
-
 def add_circles(centers, radii=5, fc=(255, 255, 255), ec=(0, 0, 0), linewidth=1, alpha=1.0, linestyle='-', zorder=None,
-                pwd=None, name=None, title="", get_artist=False):
+                pwd=None, name=None):
     """
         centers: circle centers expressed in [col, row]
     """
@@ -876,7 +873,7 @@ def add_circles(centers, radii=5, fc=(255, 255, 255), ec=(0, 0, 0), linewidth=1,
         artist = ax.add_artist(circle)
 
     if pwd is not None:
-        save_fig(plt.gcf(), pwd, name, title="", titleSize=20)
+        save_fig(plt.gcf(), pwd, name)
 
     return artist
 
@@ -886,7 +883,7 @@ def add_contour(mask, color=(255, 255, 255), linewidth=1, zorder=None):
         zorder = bottom_layer
 
     color = np.array(color).astype(float) / 255
-    contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[-2:]
+    contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[-2:]
     for contour in contours:
         plt.plot(contour[:, 0, 0], contour[:, 0, 1], linestyle='-', linewidth=linewidth, color=color,
                  zorder=zorder)
@@ -952,8 +949,7 @@ def add_arrows(centers, angles, lengths=20, color=(255, 255, 255), linewidth=1, 
                   color=color, lw=linewidth, head_width=head_width, head_length=head_length, zorder=top_layer)
 
 
-def add_rectangle(xy, width, height, angle=0, fc=(255, 255, 255), ec=(0, 0, 0), linewidth=1, alpha=1.0, linestyle='-', zorder=None,
-                  pwd=None, name=None, title=""):
+def add_rectangle(xy, width, height, angle=0, fc=(255, 255, 255), ec=(0, 0, 0), linewidth=1, alpha=1.0, linestyle='-', zorder=None):
 
     if zorder is None:
         zorder = middle_layer

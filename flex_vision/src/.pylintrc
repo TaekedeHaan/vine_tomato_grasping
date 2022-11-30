@@ -1,0 +1,15 @@
+[MAIN]
+extension-pkg-whitelist=cv2
+
+[TYPECHECK]
+ignored-modules=numpy  
+
+[FORMAT]
+max-line-length=130
+
+[MESSAGES CONTROL]
+disable=
+      R,
+      C,
+      fixme,
+      assignment-from-no-return  # https://github.com/PyCQA/pylint/issues/2694

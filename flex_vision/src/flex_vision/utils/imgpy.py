@@ -3,14 +3,15 @@ Created on Tue Jun 16 16:05:23 2020
 
 @author: taeke
 """
-import warnings
+import logging
 
 # External imports
 import cv2
 import numpy as np
-from matplotlib import pyplot as plt
 from skimage.measure import label, regionprops
 from skimage.transform import rotate as ski_rotate
+
+logger = logging.getLogger(__name__)
 
 
 def check_dimensions(image1, image2):
@@ -23,8 +24,7 @@ def add(image1, image2):
     if check_dimensions(image1, image2):
         return cv2.bitwise_or(image1, image2)
     else:
-        warnings.warn("Cannot add images: its dimensions do not match!")
-        return None
+        raise ValueError("Cannot add images: its dimensions do not match")
 
 
 def rotate(image, angle):
@@ -41,19 +41,19 @@ def rotate(image, angle):
     return image_rotate
 
 
-def crop(image, angle, bbox):
+def crop(image, angle, bounding_box):
     """returns a new image, rotated by angle in radians and cropped by the boundingbox"""
     image = rotate(image, angle)
-    image = cut(image, bbox)
+    image = cut(image, bounding_box)
     return image
 
 
-def cut(image, bbox):
+def cut(image, bounding_box):
     """returns the image cut, cut at the boundingbox"""
-    x = bbox[0]
-    y = bbox[1]
-    w = bbox[2]
-    h = bbox[3]
+    x = bounding_box[0]
+    y = bounding_box[1]
+    w = bounding_box[2]
+    h = bounding_box[3]
     return image[y:y+h, x:x+w]
 
 
@@ -62,7 +62,7 @@ def compute_angle(image):
     regions = regionprops(label(image), coordinates='xy')
 
     if len(regions) > 1:
-        warnings.warn("Multiple regions found!")
+        logger.warning("Multiple regions found")
 
     return regions[0].orientation
 

@@ -11,7 +11,7 @@ from flex_vision.utils.util import plot_segments
 from flex_vision.utils.util import create_directory
 from flex_vision.utils.util import load_image
 from flex_vision.detect_truss.filter_segments import filter_segments
-from flex_vision.detect_truss.ProcessImage import ProcessImage
+from flex_vision.detect_truss.process_image import ProcessImage
 
 
 def main():
@@ -35,8 +35,7 @@ def main():
 
         img_rgb = load_image(os.path.join(pwd_data, file_name), horizontal=True)
 
-        image = ProcessImage(use_truss=True,
-                             name=tomato_name,
+        image = ProcessImage(name=tomato_name,
                              pwd=pwd_results,
                              save=False)
 
