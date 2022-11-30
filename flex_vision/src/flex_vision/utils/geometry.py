@@ -14,7 +14,7 @@ class Point2D(object):
         coord: two-dimensional coordinates as [x, y]
         frame_id: the name of the frame
         """
-        self.coord = coord
+        self._coord = vectorize(coord)
         self.frame_id = frame_id
         self.transform = transform
 
@@ -61,10 +61,6 @@ class Point2D(object):
     @property
     def coord(self):
         return self._coord[:, 0].tolist()
-
-    @coord.setter
-    def coord(self, coord):
-        self._coord = vectorize(coord)
 
 
 class Transform(object):
@@ -128,11 +124,11 @@ class Transform(object):
         to_frame_id: string, name of frame id
         """
         if point.frame_id == to_frame_id:
-            return point._coord
+            return vectorize(point.coord)
         if point.frame_id == self.from_frame_id and to_frame_id == self.to_frame_id:
-            return self._forwards(point._coord)
+            return self._forwards(vectorize(point.coord))
         elif point.frame_id == self.to_frame_id and to_frame_id == self.from_frame_id:
-            return self._backwards(point._coord)
+            return self._backwards(vectorize(point.coord))
         else:
             raise MissingTransformError(self, from_frame=point.frame_id, to_frame=to_frame_id)
 
@@ -155,6 +151,7 @@ class MissingTransformError(Exception):
     """Exception raised for errors in the input."""
 
     def __init__(self, transform=None, from_frame=None, to_frame=None):
+        super(MissingTransformError, self).__init__()
         self.transform = transform
         self.from_frame = from_frame
         self.to_frame = to_frame
@@ -172,6 +169,7 @@ class LengthMismatchError(Exception):
     """Exception raised for errors in the input."""
 
     def __init__(self, given_length=None, desired_length=None):
+        super(LengthMismatchError, self).__init__()
         self.given_length = given_length
         self.desired_length = desired_length
 
