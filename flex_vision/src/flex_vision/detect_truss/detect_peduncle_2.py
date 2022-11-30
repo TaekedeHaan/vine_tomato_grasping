@@ -14,7 +14,7 @@ from sklearn import linear_model
 from sklearn.metrics.pairwise import euclidean_distances
 
 # Flex vision imports
-from flex_vision.utils.util import add_circles, add_arrows, add_contour, add_strings
+from flex_vision.utils.util import add_circles, add_arrows, add_contour
 from flex_vision.utils.util import plot_image, save_fig
 from flex_vision.utils.util import remove_blobs, bin2img, img2bin
 
@@ -48,11 +48,11 @@ def detect_peduncle(peduncle_img, settings=None, px_per_mm=None, bg_img=None, sa
                            name=name + "_01", pwd=pwd)
 
     if save:
-        fit_ransac(peduncle_img, bg_img=bg_img.copy(), save=True, name=name + "_ransac", pwd=pwd)
+        fit_ransac(peduncle_img, bg_img=bg_img.copy(), name=name + "_ransac", pwd=pwd)
 
     # update_image = True
     # while update_image:
-    skeleton_img, b_remove = threshold_branch_length(skeleton_img, branch_length_min_px)
+    skeleton_img, _ = threshold_branch_length(skeleton_img, branch_length_min_px)
     # update_image = b_remove.any()
     junc_coords, end_coords = get_node_coord(skeleton_img)
 
@@ -60,13 +60,13 @@ def detect_peduncle(peduncle_img, settings=None, px_per_mm=None, bg_img=None, sa
         visualize_skeleton(bg_img.copy(), skeleton_img, coord_junc=junc_coords, coord_end=end_coords,
                            name=name + "_02", pwd=pwd)
 
-    graph, pixel_coordinates, degree_image = skan.skeleton_to_csgraph(skeleton_img, unique_junctions=True)
+    graph, pixel_coordinates, _ = skan.skeleton_to_csgraph(skeleton_img, unique_junctions=True)
     dist, pred = csgraph.shortest_path(graph, directed=False, return_predecessors=True)
 
     end_nodes = coords_to_nodes(pixel_coordinates, end_coords[:, [1, 0]])
     junc_nodes = coords_to_nodes(pixel_coordinates, junc_coords[:, [1, 0]])
 
-    path, path_length_px, branch_data = find_path(
+    path, _, branch_data = find_path(
         dist, pred, junc_nodes, end_nodes, pixel_coordinates, bg_image=bg_img.copy(), do_animate=False)
 
     branch_data = get_branch_center(branch_data, dist, pixel_coordinates, skeleton_img)
@@ -357,14 +357,14 @@ def path_mask(path, pixel_coordinates, shape):
     return img.astype(np.uint8)
 
 
-def visualize_skeleton(img, skeleton_img, skeletonize=False, coord_junc=None, coord_end=None, junc_nodes=None,
+def visualize_skeleton(img, skeleton_img, do_skeletonize=False, coord_junc=None, coord_end=None, junc_nodes=None,
                        end_nodes=None, branch_data=None, name="", pwd=None, show_nodes=True, skeleton_color=None,
                        skeleton_width=4, show_img=True):
 
     if skeleton_color is None:
         skeleton_color = (0, 150, 30)
 
-    if skeletonize:
+    if do_skeletonize:
         skeleton_img = skeletonize_img(skeleton_img)
 
     if show_img:
@@ -414,7 +414,7 @@ def visualize_skeleton(img, skeleton_img, skeletonize=False, coord_junc=None, co
         save_fig(fig, pwd, name)
 
 
-def fit_ransac(peduncle_img, bg_img=None, save=False, name="", pwd=""):
+def fit_ransac(peduncle_img, bg_img=None, name="", pwd=""):
     pend_color = np.array([0, 150, 30])
     stem_color = np.array([110, 255, 128])
     # skeletonize peduncle segment
@@ -454,8 +454,8 @@ def fit_ransac(peduncle_img, bg_img=None, save=False, name="", pwd=""):
     img_inlier[tuple(coord_inlier)] = 255
     img_outlier[tuple(coord_outlier)] = 255
 
-    inlier_contours, hierarchy = cv2.findContours(img_inlier, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[-2:]
-    outlier_contours, hierarchy = cv2.findContours(img_outlier, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[-2:]
+    inlier_contours, _ = cv2.findContours(img_inlier, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[-2:]
+    outlier_contours, _ = cv2.findContours(img_outlier, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[-2:]
 
     fig = plt.figure()
     plot_image(bg_img)
@@ -469,8 +469,9 @@ def fit_ransac(peduncle_img, bg_img=None, save=False, name="", pwd=""):
     line_rows = ransac.predict(line_cols)
     plt.plot(line_cols, line_rows, color='navy', linewidth=2, label='RANSAC regressor')
     plt.legend(loc='lower right')
+    plt.title("RANSAC")
     if pwd is not None:
-        save_fig(fig, pwd, name, title="RANSAC")
+        save_fig(fig, pwd, name)
 
     return img_inlier
 

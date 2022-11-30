@@ -11,7 +11,7 @@ from matplotlib import pyplot as plt
 from sklearn.metrics.pairwise import euclidean_distances
 
 # Flex vision imports
-import settings
+from flex_vision.detect_truss import settings
 from flex_vision.utils.util import bin2img
 from flex_vision.utils.util import save_fig
 from flex_vision.utils.util import angular_difference
@@ -36,12 +36,12 @@ def k_means_hue(img_hue, n_clusters, centers=None):
 
     # Define criteria = ( type, max_iter = 10 , epsilon = 1.0 )
     criteria = (cv2.TERM_CRITERIA_EPS, 10, np.sin(np.deg2rad(1.0)))
-    compactness, labels, centers_xy = cv2.kmeans(data=data,
-                                                 K=n_clusters,
-                                                 bestLabels=labels,  # None, #
-                                                 criteria=criteria,
-                                                 attempts=1,
-                                                 flags=flags)  # cv2.KMEANS_PP_CENTERS) #
+    _, labels, centers_xy = cv2.kmeans(data=data,
+                                       K=n_clusters,
+                                       bestLabels=labels,  # None, #
+                                       criteria=criteria,
+                                       attempts=1,
+                                       flags=flags)  # cv2.KMEANS_PP_CENTERS) #
 
     # convert the centers from xy to angles\
     centers_out = {}
@@ -77,12 +77,12 @@ def k_means_hue_a(img_hue, img_a, n_clusters, my_settings, centers=None):
 
     # Define criteria = ( type, max_iter = 10 , epsilon = 1.0 )
     criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, my_settings['i_max'], my_settings['epsilon'])
-    compactness, labels, centers_xy = cv2.kmeans(data=data,
-                                                 K=n_clusters,
-                                                 bestLabels=labels,  # None, #
-                                                 criteria=criteria,
-                                                 attempts=attempts,
-                                                 flags=flags)  # cv2.KMEANS_PP_CENTERS) #
+    _, labels, centers_xy = cv2.kmeans(data=data,
+                                       K=n_clusters,
+                                       bestLabels=labels,  # None, #
+                                       criteria=criteria,
+                                       attempts=attempts,
+                                       flags=flags)  # cv2.KMEANS_PP_CENTERS) #
 
     # convert the centers from xy to angles\
     centers_out = {}
@@ -197,8 +197,8 @@ def hue_hist(img_hue, centers, lbl, name, pwd):
 
     bins = 180
     angle = img_hue.flatten().astype('uint16') * 2
-    radii, bins, patches = ax.hist(angle, bins=bins, range=(0, 360), color="black", lw=0)
-    ax.set_xlabel("hue [$^\circ$]")
+    ax.hist(angle, bins=bins, range=(0, 360), color="black", lw=0)
+    ax.set_xlabel("hue [$^\circ$]")  # pylint: disable=anomalous-backslash-in-string
     ax.set_ylabel("frequency")
     save_fig(fig, pwd, name + "_hue_hist")  # , titleSize=10
 
@@ -227,7 +227,7 @@ def a_hist(img_a, centers, lbl, bins=80, a_min=-1.0, a_max=1.0, name="", pwd="")
     plt.axvspan(x2, x3, color='r', alpha=alpha, lw=0)
 
     angle = img_a.flatten()  # .astype('uint16')
-    radii, bins, patches = ax.hist(angle, bins=bins, range=(a_min, a_max), color="black", lw=0)
+    ax.hist(angle, bins=bins, range=(a_min, a_max), color="black", lw=0)
     ax.set_xlabel("a")
     ax.set_ylabel("frequency")
     save_fig(fig, pwd, name + "_a_hist")  # , titleSize=10
@@ -300,7 +300,7 @@ def both_hist(img_hue, img_a, centers, lbl, a_bins=80, pwd="", name="", hue_min=
     # fix axis, only plot x axis for last image, only plot title for first
     # if name == final_image_id:
     plt.xticks([hue_min, hue_height / 2, hue_height - 1], map(str, (0, 180, 360)))
-    plt.xlabel("hue [$^\circ$]")
+    plt.xlabel("hue [$^\circ$]")   # pylint: disable=anomalous-backslash-in-string
     plt.title('K-means clustering result')
     # else:
     #     plt.xticks([])
@@ -308,16 +308,15 @@ def both_hist(img_hue, img_a, centers, lbl, a_bins=80, pwd="", name="", hue_min=
     plt.ylabel("a*")
     plt.yticks([0, a_height / 2, a_height - 1], map(str, (a_min, (a_min + a_max) / 2, a_max)))
 
-    if True:
-        axs = plt.gcf().get_axes()
-        plt.sca(axs[-1])
-        cmap = mpl.cm.hot_r
-        norm = mpl.colors.Normalize(vmin=0, vmax=100)
-        cb1 = mpl.colorbar.ColorbarBase(plt.gca(), cmap=cmap, norm=norm, orientation='vertical')
-        cb1.set_label('frequency', labelpad=-20)
-        plt.yticks([])
-        cb1.set_ticks([0, 100], True)
-        plt.yticks([0, 100], ['low', 'high'])
+    axs = plt.gcf().get_axes()
+    plt.sca(axs[-1])
+    cmap = mpl.cm.hot_r  # pylint: disable=no-member
+    norm = mpl.colors.Normalize(vmin=0, vmax=100)
+    cb1 = mpl.colorbar.ColorbarBase(plt.gca(), cmap=cmap, norm=norm, orientation='vertical')
+    cb1.set_label('frequency', labelpad=-20)
+    plt.yticks([])
+    cb1.set_ticks([0, 100], True)
+    plt.yticks([0, 100], ['low', 'high'])
 
     save_fig(plt.gcf(), pwd, name + "_hist", no_ticks=False)
     # plt.savefig(os.path.join(pwd, name + "_hist" + '.png'))

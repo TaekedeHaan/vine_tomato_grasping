@@ -18,11 +18,11 @@ from flex_vision.utils.util import save_img, save_fig, figure_to_image
 from flex_vision.utils.util import stack_segments, change_brightness
 from flex_vision.utils.util import plot_grasp_location, plot_image, plot_features, plot_segments
 
-from filter_segments import filter_segments
-from detect_peduncle_2 import detect_peduncle, visualize_skeleton
-from detect_tomato import detect_tomato
-from segment_image import segment_truss
-import settings
+from flex_vision.detect_truss.filter_segments import filter_segments
+from flex_vision.detect_truss.detect_peduncle_2 import detect_peduncle, visualize_skeleton
+from flex_vision.detect_truss.detect_tomato import detect_tomato
+from flex_vision.detect_truss.segment_image import segment_truss
+from flex_vision.detect_truss import settings
 
 logger = logging.getLogger(__name__)
 
@@ -44,10 +44,37 @@ class ProcessImage(object):
         self.shape = None
         self.px_per_mm = None
 
+        # color space
+        self.img_a = None
+        self.img_hue = None
+
+        # segments
         self.background = None
         self.tomato = None
         self.peduncle = None
 
+        # crop
+        self.bbox = None
+        self.angle = 0.0
+        self.transform = Transform(self.ORIGINAL_FRAME_ID, self.LOCAL_FRAME_ID)  # identity
+
+        self.truss_crop = None
+        self.tomato_crop = None
+        self.peduncle_crop = None
+        self.img_rgb_crop = None
+
+        # tomatoes
+        self.centers = None
+        self.radii = None
+        self.com = None
+
+        # stem
+        self.junction_points = None
+        self.end_points = None
+        self.peduncle_points = None
+        self.branch_data = None
+
+        # grasp location
         self.grasp_point = None
         self.grasp_angle_local = None
         self.grasp_angle_global = None
@@ -69,7 +96,7 @@ class ProcessImage(object):
             self.name = name
 
     @Timer("color space", name_space)
-    def color_space(self, compute_a=True):
+    def color_space(self):
         pwd = os.path.join(self.pwd, '01_color_space')
         self.img_hue = cv2.cvtColor(self.img_rgb, cv2.COLOR_RGB2HSV)[:, :, 0]
         self.img_a = cv2.cvtColor(self.img_rgb, cv2.COLOR_RGB2LAB)[:, :, 1]  # L: 0 to 255, a: 0 to 255, b: 0 to 255
@@ -196,7 +223,7 @@ class ProcessImage(object):
 
         self.tomato_crop = imgpy.cut(tomato_rotate, self.bbox)
         self.peduncle_crop = imgpy.cut(peduncle_rotate, self.bbox)
-        self.img_rgb_crop = imgpy.crop(self.img_rgb, angle=-angle, bbox=bbox)
+        self.img_rgb_crop = imgpy.crop(self.img_rgb, angle=-angle, bounding_box=bbox)
         self.truss_crop = imgpy.cut(truss_rotate, self.bbox)
         logger.debug("Successfully cropped image")
 
@@ -282,13 +309,13 @@ class ProcessImage(object):
         """Determine grasp location based on peduncle, junction and com information"""
         pwd = os.path.join(self.pwd, '07_grasp')
 
-        settings = self.settings['compute_grasp']
+        grasp_settings = self.settings['compute_grasp']
 
         # set dimensions
         if self.px_per_mm is not None:
-            minimum_grasp_length_px = self.px_per_mm * settings['grasp_length_min_mm']
+            minimum_grasp_length_px = self.px_per_mm * grasp_settings['grasp_length_min_mm']
         else:
-            minimum_grasp_length_px = settings['grasp_length_min_px']
+            minimum_grasp_length_px = grasp_settings['grasp_length_min_px']
 
         points_keep = []
         branches_i = []
@@ -331,8 +358,8 @@ class ProcessImage(object):
         if not self.save:
             return True
 
-        open_dist_px = settings['open_dist_mm'] * self.px_per_mm
-        finger_thickness_px = settings['finger_thinkness_mm'] * self.px_per_mm
+        open_dist_px = grasp_settings['open_dist_mm'] * self.px_per_mm
+        finger_thickness_px = grasp_settings['finger_thinkness_mm'] * self.px_per_mm
         brightness = 0.85
 
         for frame_id in [self.LOCAL_FRAME_ID, self.ORIGINAL_FRAME_ID]:
@@ -364,7 +391,7 @@ class ProcessImage(object):
         return True
 
     def crop(self, image):
-        return imgpy.crop(image, angle=-self.angle, bbox=self.bbox)
+        return imgpy.crop(image, angle=-self.angle, bounding_box=self.bbox)
 
     def get_tomatoes(self, local=False):
         target_frame_id = self.LOCAL_FRAME_ID if local else self.ORIGINAL_FRAME_ID
@@ -449,7 +476,7 @@ class ProcessImage(object):
         com = coords_from_points(self.com, frame)
 
         tomato = {'centers': centers, 'radii': self.radii, 'com': com}
-        plot_features(img_rgb, tomato=tomato, zoom=True)
+        plot_features(img_rgb, tomato=tomato, zoom=zoom)
         return figure_to_image(plt.gcf())
 
     def get_rgb(self, local=False):
@@ -494,13 +521,13 @@ class ProcessImage(object):
         visualize_skeleton(img, arr, coord_junc=xy_junc, show_img=False, skeleton_width=skeleton_width)
 
         if (grasp["xy"] is not None) and (grasp["angle"] is not None):
-            settings = self.settings['compute_grasp']
+            grasp_settings = self.settings['compute_grasp']
             if self.px_per_mm is not None:
-                minimum_grasp_length_px = self.px_per_mm * settings['grasp_length_min_mm']
-                open_dist_px = settings['open_dist_mm'] * self.px_per_mm
-                finger_thickenss_px = settings['finger_thinkness_mm'] * self.px_per_mm
+                minimum_grasp_length_px = self.px_per_mm * grasp_settings['grasp_length_min_mm']
+                open_dist_px = grasp_settings['open_dist_mm'] * self.px_per_mm
+                finger_thickenss_px = grasp_settings['finger_thinkness_mm'] * self.px_per_mm
             else:
-                minimum_grasp_length_px = settings['grasp_length_min_px']
+                minimum_grasp_length_px = grasp_settings['grasp_length_min_px']
             plot_grasp_location(grasp["xy"], grasp["angle"], finger_width=minimum_grasp_length_px,
                                 finger_thickness=finger_thickenss_px, finger_dist=open_dist_px, linewidth=grasp_linewidth)
 
@@ -584,14 +611,14 @@ class ProcessImage(object):
     def get_settings(self):
         return self.settings
 
-    def set_settings(self, settings):
+    def set_settings(self, my_settings):
         """
         Overwrites the settings which are present in the given dict
         """
 
-        for key_1 in settings:
-            for key_2 in settings[key_1]:
-                self.settings[key_1][key_2] = settings[key_1][key_2]
+        for key_1 in my_settings:
+            for key_2 in my_settings[key_1]:
+                self.settings[key_1][key_2] = my_settings[key_1][key_2]
 
 
 def load_px_per_mm(pwd, img_id):

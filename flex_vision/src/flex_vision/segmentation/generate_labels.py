@@ -78,9 +78,6 @@ def main():
     extension = ".png"
     dataset = "lidl"  # "failures" #
 
-    labels = ['tomato', 'peduncle']
-
-    pwd_current = os.path.dirname(__file__)
     drive = "backup"  # "UBUNTU 16_0"  #
     pwd_root = os.path.join(os.sep, "media", "taeke", drive, "thesis_data", "detect_truss")
     pwd_data = os.path.join(pwd_root, "data", dataset)
@@ -105,7 +102,6 @@ def main():
 
         tomato_label = 'TOMATO'
         stem_label = 'STEM'
-        background_label = 'BACKGROUND'
 
         segments = {}
         segments[tomato_label] = process_image.tomato.data  # first segment is red

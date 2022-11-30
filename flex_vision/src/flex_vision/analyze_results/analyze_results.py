@@ -6,6 +6,7 @@ Created on Mon Jul 20 14:22:48 2020
 """
 import os
 import json
+import logging
 
 # External imports
 import matplotlib as mpl
@@ -18,6 +19,8 @@ from sklearn.metrics.pairwise import euclidean_distances as euclidean_distance_m
 # Flex vision imports
 from flex_vision.detect_truss.detect_tomato import compute_com
 from flex_vision.utils.util import load_image, plot_features, plot_error, create_directory, plot_features_result
+
+logger = logging.getLogger(__name__)
 
 
 def box_plot(vals, labels, save_path, ext='png', name="error_box_plot"):
@@ -84,7 +87,7 @@ def dist_plot(vals, labels, save_path, ext='png', name="error_dist_plot"):
 
     xs = []
     np.random.seed(2)
-    for i, val in enumerate(vals):
+    for val in vals:
         xs.append(np.random.normal(0, 0.08, len(val)))
 
     fig, axs = plt.subplots(nrows=4, figsize=(3.4, 2.5), sharex=True)
@@ -92,7 +95,7 @@ def dist_plot(vals, labels, save_path, ext='png', name="error_dist_plot"):
     palette = ['r', 'r', 'k', 'g']
 
     # make kde plot
-    for i, (val, c, ax) in enumerate(zip(vals, palette, axs)):
+    for val, c, ax in zip(vals, palette, axs):
         sns.kdeplot(data=val, color=c, ax=ax, clip=[xmin, xmax], cut=xmax/0.25, bw=0.25)
         mu = np.mean(val)
         sigma = np.std(val)
@@ -120,7 +123,7 @@ def dist_plot(vals, labels, save_path, ext='png', name="error_dist_plot"):
 
     plt.xlabel('absolute error [mm]')
 
-    for i, (x, val, c, ax) in enumerate(zip(xs, vals, palette, axs)):
+    for x, val, c, ax in zip(xs, vals, palette, axs):
         face_color = mpl.colors.colorConverter.to_rgba(c, alpha=.1)
         edge_color = mpl.colors.colorConverter.to_rgba(c, alpha=.5)
         to_plot = range(0, len(val))
@@ -313,7 +316,7 @@ def main():
                 peduncle_lbl['ends'].append(point)
 
             else:
-                print "i do not know what to do with ", label
+                logger.error("Found unknown label %s", label)
 
         if use_mm:
             with open(file_inf, "r") as read_file:
@@ -340,8 +343,6 @@ def main():
         img_res = img_rgb.copy()
         tomato_res = data_results['tomato']
         peduncle_res = data_results['peduncle']
-        grasp_res = data_results['grasp_location']
-
         i_true_pos_res, i_true_pos_lbl, i_false_pos, i_false_neg = index_true_positives(tomato_lbl['centers'],
                                                                                         tomato_res['centers'],
                                                                                         dist_thresh_tomato,
@@ -381,7 +382,6 @@ def main():
 
         # plot
         if save_results:
-            ratio = float(img_res.shape[1])/float(img_res.shape[0])
             plot_features_result(img_res, tomato_pred=tomato_pred, name=truss_name + '_temp')
             plot_error(tomato_pred=tomato_pred,  # centers, com,
                        tomato_act=tomato_actual,
@@ -446,19 +446,19 @@ def main():
     n_predict_pos = 0
 
     # not in order be default!
-    all_ids = junction_error_all.keys()
-    all_ids.sort()
-    for id in all_ids:
-        tomato_error_centers.extend(tomato_error_all[id]['centers'])
-        tomato_error_radii.extend(tomato_error_all[id]['radii'])
-        tomato_error_com.append(tomato_error_all[id]['com'])
-        n_true_pos += tomato_error_all[id]['n_true_pos']
-        n_false_pos += tomato_error_all[id]['n_false_pos']
-        n_labeled_pos += tomato_error_all[id]['n_labeled_pos']
-        n_predict_pos += tomato_error_all[id]['n_predict_pos']
+    truss_names = junction_error_all.keys()
+    truss_names.sort()
+    for truss_name in truss_names:
+        tomato_error_centers.extend(tomato_error_all[truss_name]['centers'])
+        tomato_error_radii.extend(tomato_error_all[truss_name]['radii'])
+        tomato_error_com.append(tomato_error_all[truss_name]['com'])
+        n_true_pos += tomato_error_all[truss_name]['n_true_pos']
+        n_false_pos += tomato_error_all[truss_name]['n_false_pos']
+        n_labeled_pos += tomato_error_all[truss_name]['n_labeled_pos']
+        n_predict_pos += tomato_error_all[truss_name]['n_predict_pos']
 
-        if tomato_error_all[id]['n_labeled_pos'] - tomato_error_all[id]['n_true_pos'] > 0:
-            print id
+        if tomato_error_all[truss_name]['n_labeled_pos'] - tomato_error_all[truss_name]['n_true_pos'] > 0:
+            logger.warning(truss_name)
 
     error_tomato_center_mean = np.mean(tomato_error_centers)
     error_tomato_center_std = np.std(tomato_error_centers)
@@ -472,22 +472,22 @@ def main():
     true_pos_perc = int(round(float(n_true_pos) / float(n_labeled_pos) * 100))
     false_pos_perc = int(round(float(n_false_pos) / float(n_predict_pos) * 100))
 
-    print 'Tomato center error: {mean:.2f} {u:s} +- {std:.2f} {u:s} (n = {n:d})'.format(mean=error_tomato_center_mean,
+    print('Tomato center error: {mean:.2f} {u:s} +- {std:.2f} {u:s} (n = {n:d})'.format(mean=error_tomato_center_mean,
                                                                                         std=error_tomato_center_std,
-                                                                                        n=n_predict_pos, u=unit)
-    print 'Tomato radius error: {mean:.2f} {u:s} +- {std:.2f} {u:s} (n = {n:d})'.format(mean=error_tomato_radius_mean,
+                                                                                        n=n_predict_pos, u=unit))
+    print('Tomato radius error: {mean:.2f} {u:s} +- {std:.2f} {u:s} (n = {n:d})'.format(mean=error_tomato_radius_mean,
                                                                                         std=error_tomato_radius_std,
-                                                                                        n=n_predict_pos, u=unit)
-    print 'com error: {mean:.2f} {u:s} +- {std:.2f} {u:s} (n = {n:d})'.format(mean=error_com_center_mean,
+                                                                                        n=n_predict_pos, u=unit))
+    print('com error: {mean:.2f} {u:s} +- {std:.2f} {u:s} (n = {n:d})'.format(mean=error_com_center_mean,
                                                                               std=error_com_center_std, n=n_predict_pos,
-                                                                              u=unit)
+                                                                              u=unit))
 
-    print 'True positive: {true_pos:d} out of {n_tomatoes:d} ({true_pos_perc:d}%)'.format(true_pos=n_true_pos,
+    print('True positive: {true_pos:d} out of {n_tomatoes:d} ({true_pos_perc:d}%)'.format(true_pos=n_true_pos,
                                                                                           n_tomatoes=n_labeled_pos,
-                                                                                          true_pos_perc=true_pos_perc)
-    print 'False positive: {false_pos:d} out of {n_tomatoes:d} ({false_pos_perc:d}%)'.format(false_pos=n_false_pos,
+                                                                                          true_pos_perc=true_pos_perc))
+    print('False positive: {false_pos:d} out of {n_tomatoes:d} ({false_pos_perc:d}%)'.format(false_pos=n_false_pos,
                                                                                              n_tomatoes=n_predict_pos,
-                                                                                             false_pos_perc=false_pos_perc)
+                                                                                             false_pos_perc=false_pos_perc))
 
     cases = ['all', 'center', 'off-center']
 
@@ -498,15 +498,16 @@ def main():
     n_labeled_pos = dict.fromkeys(cases, 0)
     n_predict_pos = dict.fromkeys(cases, 0)
 
-    for id in all_ids:
+    for truss_name in truss_names:
 
-        id_type = ((int(id) - 1) % 7 + 1)
+        id_type = ((int(truss_name) - 1) % 7 + 1)
         if id_type in [1, 2, 3]:
             case = 'center'
         elif id_type in [4, 5, 6, 7]:
             case = 'off-center'
         else:
-            print '?'
+            logger.error("Found unkown ID type %d", id_type)
+            continue
 
         for key in ['all', case]:
             max_error = np.amax(junction_error_all[id]['centers'])
@@ -536,18 +537,18 @@ def main():
 
             true_pos_perc = int(round(float(n_true_pos[key]) / float(n_labeled_pos[key]) * 100))
             false_pos_perc = int(round(float(n_false_pos[key]) / float(n_predict_pos[key]) * 100))
-            print '===', key, '==='
+            print(key)
 
-            print 'Junction center error: {mean:.2f} {u:s} +- {std:.2f} {u:s} (n = {n:d})'.format(mean=error_juncion_center_mean,
+            print('Junction center error: {mean:.2f} {u:s} +- {std:.2f} {u:s} (n = {n:d})'.format(mean=error_juncion_center_mean,
                                                                                                   std=error_junction_center_std,
-                                                                                                  n=n_true_pos[key], u=unit)
+                                                                                                  n=n_true_pos[key], u=unit))
 
-            print 'True positive: {true_pos:d} out of {n_junc_actual:d} ({true_pos_perc:d}%)'.format(true_pos=n_true_pos[key],
+            print('True positive: {true_pos:d} out of {n_junc_actual:d} ({true_pos_perc:d}%)'.format(true_pos=n_true_pos[key],
                                                                                                      n_junc_actual=n_labeled_pos[key],
-                                                                                                     true_pos_perc=true_pos_perc)
-            print 'False positive: {false_pos:d} out of {n_junct_predict:d} ({false_pos_perc:d}%)'.format(false_pos=n_false_pos[key],
+                                                                                                     true_pos_perc=true_pos_perc))
+            print('False positive: {false_pos:d} out of {n_junct_predict:d} ({false_pos_perc:d}%)'.format(false_pos=n_false_pos[key],
                                                                                                           n_junct_predict=n_predict_pos[key],
-                                                                                                          false_pos_perc=false_pos_perc)
+                                                                                                          false_pos_perc=false_pos_perc))
 
 
 if __name__ == '__main__':

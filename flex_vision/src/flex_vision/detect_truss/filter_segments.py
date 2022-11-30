@@ -10,7 +10,7 @@ import cv2
 from flex_vision.utils.util import remove_blobs
 
 
-def filter_segments(tomato, peduncle, background, settings=None):
+def filter_segments(tomato, peduncle, background, settings=None):  # pylint: disable=unused-argument
     # tomato
     # kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (filterDiameterTom, filterDiameterTom))
     # tomato_filtered = tomato # cv2.morphologyEx(cv2.morphologyEx(tomato, cv2.MORPH_OPEN, kernel),cv2.MORPH_CLOSE, kernel)

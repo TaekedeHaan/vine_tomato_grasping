@@ -43,7 +43,7 @@ def main():
 
             img_rgb = load_image(os.path.join(pwd_data, file_name), horizontal=True)
             process_image.add_image(img_rgb, name=tomato_name)
-            process_image.color_space(compute_a=True)
+            process_image.color_space()
             process_image.segment_image(radius=radius)
             process_image.filter_image(folder_name=str(radius))
             count = count + 1
