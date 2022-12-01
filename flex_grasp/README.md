@@ -22,8 +22,6 @@ catkin_make
 ```
 
 ### 1.3 Download the source code
-> :warning: Only use the master branch!
-
 clone this repository
 ```
 cd ~/flexcraft_ws/src
@@ -48,7 +46,7 @@ Finally set up the udev rules for communication:
 $ sudo cp ~/flexcraft_ws/src/interbotix_ros_arms/interbotix_sdk/10-interbotix-udev.rules /etc/udev/rules.d
 $ sudo udevadm control --reload-rules && udevadm trigger
 ```
-When running into any problems please refere to the [interbotix_ros_arms repo](https://github.com/Interbotix/interbotix_ros_arms)
+When running into any problems please refer to the [interbotix_ros_arms repo](https://github.com/Interbotix/interbotix_ros_arms)
 
 #### iiwa Support
 For iiwa support we require the iiwa_stack:
@@ -92,11 +90,11 @@ git clone --single-branch --branch initialize-subscribe https://github.com/Taeke
 This forks contains some modifications to initialize the parameters in the GUI to the values last published. Note that you can also use the default library. However, this initialization makes life a bit easier.
 
 #### Python packages
-Not all packages could be specified in the package.xml, and need to be installled manually:
+Not all packages could be specified in the package.xml, and need to be installed manually:
 ```
 python2 -m pip install colormath
 ```
-The flex_vision package relies on a fork of the skan library wich offers python 2 support:
+The flex_vision package relies on a fork of the skan library which offers python 2 support:
 ```
 python2 -m pip install git+https://github.com/TaekedeHaan/skan.git@python-2.7
 ```
@@ -110,13 +108,13 @@ rosdep install --from-paths src --ignore-src -r -y
 ```
 
 ## 2 Run (Simulation)
-1. To run in simulation we first launch the enviroment. To launch the interbotix enviroment run in your terminal:
+1. To run in simulation we first launch the environment. To launch the interbotix environment run in your terminal:
     ```
     roslaunch flex_grasp interbotix_enviroment.launch use_calibration:=false
     ```
     There is no calibration file available yet, therefore we put `use_calibration` to `false`.
 
-2. Gazebo should start by default it is paused (this behaviour can be chnaged in the launch files).
+2. Gazebo should start by default it is paused (this behavior can be changed in the launch files).
 
     <img src="doc/gazebo.png" alt="Gazebo" width="800"/>
 
@@ -124,7 +122,7 @@ rosdep install --from-paths src --ignore-src -r -y
 
     <img src="doc/rviz.png" alt="RViz" width="800"/>
 
-4. You have succesfully started the enviroment. To stat the controls run in your terminal:
+4. You have successfully started the environment. To stat the controls run in your terminal:
     ```
     roslaunch flex_grasp interbotix_control.launch
     ```
@@ -157,7 +155,7 @@ First we need to calibrate the robot, this will generate a yaml file, which is s
     w: 0.751916070974
 
 ```
-The calibration results can be found in ~/.ros/easy_handeye/calibration_eye_on_base.yaml. Now you can stop the current porces by pressing `Ctrl + C`. Now run
+The calibration results can be found in ~/.ros/easy_handeye/calibration_eye_on_base.yaml. Now you can stop the current process by pressing `Ctrl + C`. Now run
 ```
 roslaunch flex_grasp interbotix_enviroment.launch
 ```
@@ -193,39 +191,32 @@ To activate an action, a command needs to be published on the `ROBOT_NAME/pipeli
 - Detect Truss: command to computer vision pipeline to detect the truss
 - Save Image: save the current image
 - Pick and Place: execute a pick and place routing
-- Experiment: Repeatedly execute Detect Truss, Save Image and Pick and Place (easy for conducitng experiments)
+- Experiment: Repeatedly execute Detect Truss, Save Image and Pick and Place (easy when conducting experiments)
 
 With the drop down menu you can select where to store the results.
 
 
 ## 3 Supported hardware
-
 Manipulator:
-
 - **Interbotix PincherX 150** (possibly all others from the interbotix series, but this has not been tested)
 - **KUKA LBR IIWA 7** (deprecated in simulation + not tested on actual hardware)
 
 End-effector:
-
 - **SDH** (deprecated in simulation + not tested on actual hardware)
 
 Carmera:
-
 - **Intel RealSense D435**
 
-
 ## 4 Contents
-
 ### Nodes
-
 - `analyze_point_cloud`: not used
 - `calibrate`: generates the calibration poses, sends them to the move robot node and computing calibration
 - `monitor robot`: is used to monitor the DYNAMIXELS of the interbotix robot, by reading temperature and error values. Furthermore it sets the PID values upon startup as defined in `/config/px150_pid`. This node does not do anything in simulation
 - `move_gripper`: not used
-- `move_robot`: takes commands from other nodes and moves the manipulater according to these commands
+- `move_robot`: takes commands from other nodes and moves the manipulator according to these commands
 - `object_detection`: uses detect_truss to identify a valid grasp location
 - `pick_place`: generates pick place commands and sends these to move_robot
-- `pipeline`: contains the statemachine, commands all other nodes
+- `pipeline`: contains the state machine, commands all other nodes
 - `transform_pose`: transforms a grasping pose as calculated by object_detection to a target pose for the manipulator
 - `visualize_object`: not used
 
@@ -240,7 +231,7 @@ Carmera:
 
 
 ### Enums
-To store the state of different parts of the system, enums are used. These are defined in the messa files.
+To store the state of different parts of the system, enums are used. These are defined in the message files.
 - `DynamixelErrorCodes`
 - `FlexGraspCommandCodes`
 - `FlexGraspErrorCodes`
