@@ -14,6 +14,7 @@ from tf.transformations import euler_from_quaternion, quaternion_from_euler
 from geometry_msgs.msg import PoseStamped, Point, Quaternion, Pose
 from flex_grasp.msg import ImageProcessingSettings
 
+
 def pose_to_lists(pose_msg, orientation_type):
     """
         if orientation_type == euler, retrun euler angles in radians
@@ -33,15 +34,6 @@ def pose_to_lists(pose_msg, orientation_type):
 
     return position, orientation
 
-
-def position_to_list(position_msg):
-    position = []
-
-    position.append(position_msg.x)
-    position.append(position_msg.y)
-    position.append(position_msg.z)
-
-    return position
 
 def list_to_position(position_list):
     position_msg = Point()
@@ -66,6 +58,7 @@ def orientation_to_list(orientation_msg):
 
     return orientation
 
+
 def list_to_orientation(orientation_list):
 
     if len(orientation_list) == 3:
@@ -82,6 +75,7 @@ def list_to_orientation(orientation_list):
     orientation_msg.w = quat_list[3]
 
     return orientation_msg
+
 
 def point_to_pose_stamped(xyz, rpy, frame, time):
 
@@ -146,6 +140,7 @@ def settings_lib_to_msg(lib):
 
     return msg
 
+
 def settings_msg_to_lib(msg):
 
     tom_lib = {}
@@ -165,7 +160,6 @@ def settings_msg_to_lib(msg):
     tom_lib['param2'] = msg.param2
 #    tom_lib['blur_size'] = msg.blur_size
 #    tom_lib['ratio_threshold'] = msg.ratio_threshold
-
 
     pend_lib = {}
 #    pend_lib['branch_length_min_px'] = msg.branch_length_min_px
