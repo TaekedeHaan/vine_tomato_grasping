@@ -25,7 +25,8 @@ class Point2D(object):
         if self.frame_id == frame_id:
             return self.coord
         elif self.transform is None:
-            raise MissingTransformError(self.transform, from_frame=self.frame_id, to_frame=frame_id)
+            raise LookupException(
+                "Lookup error: can not transform point from %s to %s as the transform is still empty", self.frame_id, frame_id)
         else:
             coord = self.transform.apply(self, frame_id)
             return coord[:, 0].tolist()
@@ -47,16 +48,8 @@ class Point2D(object):
             return self._dist(points)
 
     def _dist(self, point):
-        # TODO: we can also apply the transform stored in point(s)
-
-        transform = self.transform
-
-        if (self.frame_id != point.frame_id) and (transform is None):
-            raise MissingTransformError(transform, from_frame=self.frame_id, to_frame=point.frame_id)
-
-        else:  # (self.frame_id == point.frame_id) or (transform is not None):
-            coord = point.get_coord(self.frame_id)
-            return np.sqrt(np.sum(np.power(np.subtract(self.coord, coord), 2)))
+        coord = point.get_coord(self.frame_id)
+        return np.sqrt(np.sum(np.power(np.subtract(self.coord, coord), 2)))
 
     @property
     def coord(self):
@@ -130,7 +123,8 @@ class Transform(object):
         elif point.frame_id == self.to_frame_id and to_frame_id == self.from_frame_id:
             return self._backwards(vectorize(point.coord))
         else:
-            raise MissingTransformError(self, from_frame=point.frame_id, to_frame=to_frame_id)
+            raise LookupException(
+                "Lookup error: can not transform point from %s to %s as the transform is still empty", point.frame_id, to_frame_id)
 
     def _forwards(self, coord):
         """
@@ -147,22 +141,9 @@ class Transform(object):
         return np.matmul(self.R, coord + self.T + self.translation)
 
 
-class MissingTransformError(Exception):
-    """Exception raised for errors in the input."""
-
-    def __init__(self, transform=None, from_frame=None, to_frame=None):
-        super(MissingTransformError, self).__init__()
-        self.transform = transform
-        self.from_frame = from_frame
-        self.to_frame = to_frame
-
-    def __str__(self):
-        if (self.transform is None) and (self.from_frame is not None) and (self.to_frame is not None):
-            return "Cannot transform from " + self.from_frame + " frame to " + self.to_frame + " frame, transform is empty!"
-        elif self.transform is None:
-            return "Cannot transform, transform is empty!"
-        else:
-            return "Cannot transform from " + self.from_frame + " frame to " + self.to_frame + " frame, transform unknown!"
+class LookupException(Exception):
+    """Exception raised for failed to lookup a transform."""
+    pass
 
 
 def points_from_coords(coords, frame, transform=None):

@@ -5,7 +5,7 @@ import unittest
 import numpy as np
 
 # Flex vision imports
-from flex_vision.utils.geometry import Point2D, Transform, MissingTransformError
+from flex_vision.utils.geometry import Point2D, Transform, LookupException
 
 
 class TransformTests(unittest.TestCase):
@@ -93,18 +93,18 @@ class TransformTests(unittest.TestCase):
 
     def test_missing_transform(self):
         """
-        get coordinate returns a MissingTransformError when requested a coordinate when no transform was given
+        get coordinate returns a LookupException when requested a coordinate when no transform was given
         """
         point1 = Point2D([400, 100], 'origin')
-        self.assertRaises(MissingTransformError, point1.get_coord, 'local')
+        self.assertRaises(LookupException, point1.get_coord, 'local')
 
     def test_missing_transform(self):
         """
-        get coordinate returns a MissingTransformError when requested a coordinate in a frame for which the transform is unknown
+        get coordinate returns a LookupException when requested a coordinate in a frame for which the transform is unknown
         """
         transform = Transform('origin', 'local', translation=[0, 0])
         point1 = Point2D([400, 100], 'origin', transform)
-        self.assertRaises(MissingTransformError, point1.get_coord, 'space')
+        self.assertRaises(LookupException, point1.get_coord, 'space')
 
     def test_point_length_mismatch(self):
         """
