@@ -165,23 +165,6 @@ class MissingTransformError(Exception):
             return "Cannot transform from " + self.from_frame + " frame to " + self.to_frame + " frame, transform unknown!"
 
 
-class LengthMismatchError(Exception):
-    """Exception raised for errors in the input."""
-
-    def __init__(self, given_length=None, desired_length=None):
-        super(LengthMismatchError, self).__init__()
-        self.given_length = given_length
-        self.desired_length = desired_length
-
-    def __str__(self):
-        if (self.given_length is not None) and (self.desired_length is not None):
-            return "Provided wrong length: you gave " + str(self.given_length) + ", but should be " + str(self.desired_length) + "!"
-        elif self.desired_length is not None:
-            return "Provided wrong length: please provide an input of length" + str(self.desired_length) + "!"
-        else:
-            return "Provided wrong length!"
-
-
 def points_from_coords(coords, frame, transform=None):
     "Takes a list of coordinates, and outputs a list of Point2D"
     if coords is None:
@@ -207,10 +190,9 @@ def coords_from_points(point_list, frame):
 def vectorize(data):
     """Takes a list, tuple or numpy array and returns a column vector"""
     if isinstance(data, (list, tuple)):
-        if len(data) == 2:
-            return np.array(data, ndmin=2).transpose()
-        else:
-            raise LengthMismatchError(given_length=len(data), desired_length=2)
+        if len(data) != 2:
+            raise ValueError("Length mismatch: Expected list or tuple has 2 elements, but has %d elements", len(data))
+        return np.array(data, ndmin=2).transpose()
 
     elif isinstance(data, np.ndarray):
         coord = np.array(data, ndmin=2)
@@ -219,7 +201,7 @@ def vectorize(data):
         elif coord.shape == (2, 1):
             return coord
         else:
-            raise LengthMismatchError(desired_length=2)
+            raise ValueError("Shape mismatch: Expected numpy array has shape (1, 2) or (2,1), but has %s", data.shape)
 
 
 def main():

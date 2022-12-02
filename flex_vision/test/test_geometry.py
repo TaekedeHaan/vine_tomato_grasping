@@ -5,7 +5,7 @@ import unittest
 import numpy as np
 
 # Flex vision imports
-from flex_vision.utils.geometry import Point2D, Transform, MissingTransformError, LengthMismatchError
+from flex_vision.utils.geometry import Point2D, Transform, MissingTransformError
 
 
 class TransformTests(unittest.TestCase):
@@ -108,15 +108,15 @@ class TransformTests(unittest.TestCase):
 
     def test_point_length_mismatch(self):
         """
-        Point2D returns a LengthMismatchError when a wrong coordinate length is provided
+        Point2D returns a ValueError when a wrong coordinate length is provided
         """
-        self.assertRaises(LengthMismatchError, Point2D, [400, 100, 100], 'origin')
+        self.assertRaises(ValueError, Point2D, [400, 100, 100], 'origin')
 
     def test_transform_length_mismatch(self):
         """
-        Transform returns a LengthMismatchError when a wrong translation length is provided
+        Transform returns a ValueError when a wrong translation length is provided
         """
-        self.assertRaises(LengthMismatchError, Transform, 'origin', 'local', translation=[0, 0, 0])
+        self.assertRaises(ValueError, Transform, 'origin', 'local', translation=[0, 0, 0])
 
 
 if __name__ == '__main__':
