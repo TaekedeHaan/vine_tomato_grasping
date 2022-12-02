@@ -1,15 +1,20 @@
+import logging
+from typing import TYPE_CHECKING
+
 # External imports
 import numpy as np
 
+if TYPE_CHECKING:
+    import typing
+
+logger = logging.getLogger(__name__)
+
 
 class Point2D(object):
-    """
-    class used for storing two-dimensional points, and getting the coordiante of a point with respect to a certain
-    reference frame
-    """
+    """ Class used for storing two-dimensional coordinate with respect to a certain reference frame """
 
-    # TODO: currently only a single transform is supported.
     def __init__(self, coord, frame_id, transform=None):
+        # type: (typing.Any, str, typing.Optional[Transform]) -> None
         """
         coord: two-dimensional coordinates as [x, y]
         frame_id: the name of the frame
@@ -19,6 +24,7 @@ class Point2D(object):
         self.transform = transform
 
     def get_coord(self, frame_id):
+        # type: (str) -> typing.List[float]
         """
         Get the coordinate of a two-dimensional point, with respect to a certain frame
         """
@@ -32,6 +38,7 @@ class Point2D(object):
             return coord[:, 0].tolist()
 
     def dist(self, points):
+        # type: (Point2D) -> float
         """
         Calculate the distance between two points
         """
@@ -48,11 +55,13 @@ class Point2D(object):
             return self._dist(points)
 
     def _dist(self, point):
+        # type: (Point2D) -> float
         coord = point.get_coord(self.frame_id)
         return np.sqrt(np.sum(np.power(np.subtract(self.coord, coord), 2)))
 
     @property
     def coord(self):
+        # type: () -> typing.List[float]
         return self._coord[:, 0].tolist()
 
 
@@ -65,6 +74,7 @@ class Transform(object):
     # TODO: move from row, column coordinates to xy, to make things less confusing.
 
     def __init__(self, from_frame_id, to_frame_id, dim=None, angle=None, translation=None):
+        # type: (str, str, typing.Optional[typing.Tuple[int, int]], typing.Optional[float], typing.Optional[typing.Any]) -> None
         """
         from_frame_id: transform from frame name
         to_frame_id: transform to frame name
@@ -98,7 +108,7 @@ class Transform(object):
             T = np.zeros((2, 1))
 
             if angle is not None:
-                print "Did not specify image dimensions, ignoring rotation!"
+                logger.warning("Did not specify image dimensions, ignoring rotation")
 
         self.from_frame_id = from_frame_id
         self.to_frame_id = to_frame_id
@@ -111,6 +121,7 @@ class Transform(object):
             self.translation = np.zeros((2, 1))
 
     def apply(self, point, to_frame_id):
+        # typing: (Point2D, str) -> np.typing.ArrayLike
         """
         Applies transform to a given point to a given frame
         point: Point object
@@ -127,6 +138,7 @@ class Transform(object):
                 "Lookup error: can not transform point from %s to %s as the transform is still empty", point.frame_id, to_frame_id)
 
     def _forwards(self, coord):
+        # type: (np.typing.ArrayLike) -> np.typing.ArrayLike
         """
         translates 2d coordinate with and angle and than translation
         coord: 2D coords [x, y]
@@ -134,6 +146,7 @@ class Transform(object):
         return np.matmul(self.Rinv, coord) - self.T - self.translation
 
     def _backwards(self, coord):
+        # type: (np.typing.ArrayLike) -> np.typing.ArrayLike
         """
         translates 2d coordiante with -translation and than -angle
         coord: 2D coords [x, y]
@@ -171,11 +184,13 @@ def coords_from_points(point_list, frame):
 def vectorize(data):
     """Takes a list, tuple or numpy array and returns a column vector"""
     if isinstance(data, (list, tuple)):
+        logger.info("list/tuple")
         if len(data) != 2:
             raise ValueError("Length mismatch: Expected list or tuple has 2 elements, but has %d elements", len(data))
         return np.array(data, ndmin=2).transpose()
 
     elif isinstance(data, np.ndarray):
+        logger.info("numpy array")
         coord = np.array(data, ndmin=2)
         if coord.shape == (1, 2):
             return coord.transpose()
@@ -200,10 +215,10 @@ def main():
     point2 = Point2D(coord, frame_id, transform)
 
     for frame_id in ['origin', 'local']:
-        print 'point 1 in ', frame_id, ': ', point1.get_coord(frame_id)
-        print 'point 2 in ', frame_id, ': ', point2.get_coord(frame_id)
+        print('point 1 in ', frame_id, ': ', point1.get_coord(frame_id))
+        print('point 2 in ', frame_id, ': ', point2.get_coord(frame_id))
 
-    print 'distance between points: ', point1.dist(point2)
+    print('distance between points: ', point1.dist(point2))
 
 
 if __name__ == '__main__':
