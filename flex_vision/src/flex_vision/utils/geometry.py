@@ -95,15 +95,16 @@ def image_transform(source_frame, target_frame, shape, angle, tx=0.0, ty=0.0):
     """
     height, width = shape
 
-    # Translation vector due to rotation
+    # Translation due to rotation
     if angle > 0:
         tx_rotation, ty_rotation = (0.0, -np.sin(angle) * width)
     else:
         tx_rotation, ty_rotation = (np.sin(angle) * height, 0.0)
 
-    # Translation vector due to > 90deg rotations
+    # Additional translation vector due to > 90deg rotation
     if (angle < -np.pi/2) or (angle > np.pi/2):
-        tx_rotation, ty_rotation = (tx_rotation + np.cos(angle) * width, ty_rotation + np.cos(angle) * height)
+        tx_rotation += np.cos(angle) * width
+        ty_rotation += np.cos(angle) * height
 
     return Transform(source_frame, target_frame, angle, tx_rotation + tx, ty_rotation + ty)
 
