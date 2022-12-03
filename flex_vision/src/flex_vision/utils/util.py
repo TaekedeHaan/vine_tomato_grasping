@@ -5,6 +5,7 @@ Created on Fri Feb 14 21:21:28 2020
 @author: taeke
 """
 import os
+import math
 from typing import TYPE_CHECKING
 
 # External imports
@@ -170,7 +171,7 @@ def angular_difference(alpha, beta):
     Returns:
         The angular difference in radians.
     """
-    return np.abs(np.arctan2(np.sin(alpha - beta), np.cos(alpha - beta)))
+    return abs(math.atan2(math.sin(alpha - beta), math.cos(alpha - beta)))
 
 
 def remove_blobs(image):
@@ -760,7 +761,6 @@ def plot_error(tomato_pred, tomato_act, error,
             kw['bbox']['fc'] = 'lightgrey'
             arrow_color = 'lightgrey'
 
-        # print center, label
         y = center[1]
         x = center[0]
 

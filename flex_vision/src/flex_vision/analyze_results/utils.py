@@ -23,7 +23,7 @@ def main():
             print("About to remove {0} key from file {1}".format(key, file_name))
             remove_key_from_json(key, file_name)
     elif user_input == 'n':
-        print "Will not execute"
+        print("Will not execute")
     else:
         print("Unknown input, will not execute")
 

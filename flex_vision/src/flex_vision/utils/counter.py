@@ -4,9 +4,13 @@ Created on Sat Jul 18 21:24:47 2020
 
 @author: taeke
 """
-
-
 import functools
+from typing import TYPE_CHECKING
+
+
+if TYPE_CHECKING:
+    # pylint: disable=unused-import
+    import typing
 
 
 class CounterError(Exception):
@@ -14,7 +18,7 @@ class CounterError(Exception):
 
 
 class Counter:
-    counters = dict()
+    counters = dict()  # type: typing.Dict
 
     def __init__(
         self,

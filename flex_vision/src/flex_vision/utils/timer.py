@@ -6,6 +6,12 @@ modified such that it works with python 2
 """
 import time
 import functools
+from typing import TYPE_CHECKING
+
+
+if TYPE_CHECKING:
+    # pylint: disable=unused-import
+    import typing
 
 
 class TimerError(Exception):
@@ -13,7 +19,7 @@ class TimerError(Exception):
 
 
 class Timer:
-    timers = dict()
+    timers = dict()   # type: typing.Dict
 
     def __init__(
         self,

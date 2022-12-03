@@ -26,6 +26,7 @@ from flex_vision.detect_truss.segment_image import segment_truss
 from flex_vision.detect_truss import settings
 
 if TYPE_CHECKING:
+    # pylint: disable=unused-import
     import typing
 
 logger = logging.getLogger(__name__)

@@ -151,7 +151,7 @@ def segment_truss(img_hue, img_a=None, save="False", name="", pwd="", my_setting
     dim = img_hue.shape
     tomato = label2img(labels, lbl["tomato"], dim)
     if np.abs(centers['hue'][lbl["background"]] - centers['hue'][lbl["peduncle"]]) < np.deg2rad(10):
-        print "did not detect a peduncle"
+        print("did not detect a peduncle")
         peduncle = bin2img(np.zeros(dim))
         background = cv2.bitwise_not(tomato)
     else:

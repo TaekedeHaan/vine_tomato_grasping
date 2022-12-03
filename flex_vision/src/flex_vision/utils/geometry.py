@@ -1,11 +1,13 @@
 import logging
+import math
 from typing import TYPE_CHECKING
 
 # External imports
 import numpy as np
-from flex_vision import constants
+from flex_vision import constants  # pylint: disable=unused-import
 
 if TYPE_CHECKING:
+    # pylint: disable=unused-import
     import typing
 
 logger = logging.getLogger("flex_vision")
@@ -26,7 +28,7 @@ class Point2D(object):
     @property
     def coord(self):
         # type: () -> typing.List[float]
-        return self._coord[:, 0].tolist()
+        return self._coord[:, 0].tolist()  # type: ignore
 
 
 class Transform(object):
@@ -99,7 +101,7 @@ class Transform(object):
             return Point2D(self._backwards(vectorize(point.coord)), frame_id)
         else:
             raise LookupException(
-                "Lookup error: can not transform point from %s to %s as the transform is still empty", point.frame_id, frame_id)
+                "Lookup error: can not transform point from %s to %s as the transform is still empty" % point.frame_id, frame_id)
 
     def _forwards(self, coord):
         # type: (np.typing.ArrayLike) -> np.typing.ArrayLike
@@ -122,7 +124,7 @@ def distance(point1, point2):
     # type: (Point2D, Point2D) -> float
     if point1.frame_id != point2.frame_id:
         raise ValueError("Frame mismatch: cannot compute distance between points, as they are defined in different frames")
-    return np.sqrt(np.sum(np.power(np.subtract(point1.coord, point2.coord), 2)))
+    return math.sqrt(np.sum(np.power(np.subtract(point1.coord, point2.coord), 2)))
 
 
 class LookupException(Exception):
@@ -145,7 +147,7 @@ def vectorize(data):
     if isinstance(data, (list, tuple)):
         # logger.info("list/tuple")
         if len(data) != 2:
-            raise ValueError("Length mismatch: Expected list or tuple has 2 elements, but has %d elements", len(data))
+            raise ValueError("Length mismatch: Expected list or tuple has 2 elements, but has %d elements" % len(data))
         return np.array(data, ndmin=2).transpose()
 
     elif isinstance(data, np.ndarray):
@@ -156,7 +158,7 @@ def vectorize(data):
         elif coord.shape == (2, 1):
             return coord
         else:
-            raise ValueError("Shape mismatch: Expected numpy array has shape (1, 2) or (2,1), but has %s", data.shape)
+            raise ValueError("Shape mismatch: Expected numpy array has shape (1, 2) or (2,1), but has %s" % data.shape)
 
 
 def main():
