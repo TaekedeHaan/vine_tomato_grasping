@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING
 
 # External imports
 import numpy as np
-from flex_vision import constants  # pylint: disable=unused-import
 
 if TYPE_CHECKING:
     # pylint: disable=unused-import
@@ -156,31 +155,3 @@ def rotation_matrix(angle):
     cos_angle = np.cos(angle)
     sin_angle = np.sin(angle)
     return np.array([[cos_angle, -sin_angle], [sin_angle, cos_angle]])
-
-
-def main():
-    """
-    Brief demo of the Point2d and Transform class
-    """
-    transform = Transform('origin', 'local', translation=(3, 4))
-
-    frame_id = 'origin'
-    coord = [0, 0]
-    point1 = Point2D(coord, frame_id)
-
-    frame_id = 'local'
-    coord = [0, 0]
-    point2 = Point2D(coord, frame_id)
-
-    for frame_id in ['origin', 'local']:
-        logger.info("point 1 in %s: %s", frame_id, transform.apply(point1, frame_id).coord)
-        logger.info("point 2 in %s: %s", frame_id, transform.apply(point2, frame_id).coord)
-
-    point1_local = transform.apply(point1, 'local')
-    point2_local = transform.apply(point2, 'local')
-    logger.info("Distance between points: %.3f", distance(point1_local, point2_local))
-    # print('distance between points: ', point1.dist(point2))
-
-
-if __name__ == '__main__':
-    main()
