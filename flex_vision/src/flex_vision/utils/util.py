@@ -5,7 +5,6 @@ Created on Fri Feb 14 21:21:28 2020
 @author: taeke
 """
 import os
-import math
 from typing import TYPE_CHECKING
 
 # External imports
@@ -161,17 +160,17 @@ def change_brightness(image, brightness, copy=True):
 
 
 def angular_difference(alpha, beta):
-    # type: (float, float) -> float
+    # type: (np.typing.ArrayLike, np.typing.ArrayLike) -> np.typing.ArrayLike
     """ Compute the difference between two angles.
 
     Args:
-        alpha: An angle in radians.
-        beta: An angle in radians.
+        alpha: The angles in radians.
+        beta: The angles in radians.
 
     Returns:
-        The angular difference in radians.
+        The angular differences in radians.
     """
-    return abs(math.atan2(math.sin(alpha - beta), math.cos(alpha - beta)))
+    return np.abs(np.arctan2(np.sin(alpha - beta), np.cos(alpha - beta)))
 
 
 def remove_blobs(image):

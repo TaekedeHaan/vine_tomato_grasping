@@ -32,62 +32,19 @@ class Point2D(object):
 
 
 class Transform(object):
-    """
-    Very simple class used for storing a two-dimensional transformation, and applying it to two-dimensional points
-    Note that it does not support multiple transformations or and successive transformations.
-    """
+    """ Class used for storing a two-dimensional transformation, and applying it to two-dimensional points """
 
-    # TODO: move from row, column coordinates to xy, to make things less confusing.
+    def __init__(self, source_frame, target_frame, angle=0.0, tx=0.0, ty=0.0):
+        # type: (str, str, float, float, float) -> None
+        """ Con"""
 
-    def __init__(self, from_frame_id, to_frame_id, dim=None, angle=None, translation=None):
-        # type: (str, str, typing.Optional[typing.Tuple[int, int]], typing.Optional[float], typing.Optional[typing.Any]) -> None
-        """
-        from_frame_id: transform from frame name
-        to_frame_id: transform to frame name
-        dim: image dimensions [width, height]
-        angle: angle of rotation in radians (counter clockwise is positive)
-        translation: translation [x,y]
-        """
-        if (dim is not None) and (angle is not None):
-            height = dim[1]
-            width = dim[0]
-
-            # Rotation matrix
-            R = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
-
-            # Translation vector due to rotation
-            if angle > 0:
-                T1 = [0, -np.sin(angle) * width]
-            else:
-                T1 = [np.sin(angle) * height, 0]
-
-            # Translation vector due to >90deg rotations
-            if (angle < -np.pi/2) or (angle > np.pi/2):
-                T2 = [np.cos(angle) * width, np.cos(angle) * height]
-            else:
-                T2 = [0, 0]
-
-            T = vectorize(T1) + vectorize(T2)
-
-        else:
-            R = np.identity(2)
-            T = np.zeros((2, 1))
-
-            if angle is not None:
-                logger.warning("Did not specify image dimensions, ignoring rotation")
-
-        self.from_frame_id = from_frame_id
-        self.to_frame_id = to_frame_id
-        self.R = R
-        self.Rinv = np.linalg.inv(self.R)
-        self.T = T
-        if translation is not None:
-            self.translation = vectorize(translation)
-        else:
-            self.translation = np.zeros((2, 1))
+        self.source_frame = source_frame
+        self.target_frame = target_frame
+        self.R = rotation_matrix(angle)
+        self.T = vectorize([tx, ty])
 
     def apply(self, point, frame_id):
-        # typing: (Point2D, str) -> Point2D
+        # type: (Point2D, str) -> Point2D
         """
         Applies transform to a given point to a given frame
         point: Point object
@@ -95,13 +52,13 @@ class Transform(object):
         """
         if point.frame_id == frame_id:
             return point
-        if point.frame_id == self.from_frame_id and frame_id == self.to_frame_id:
+        if point.frame_id == self.source_frame and frame_id == self.target_frame:
             return Point2D(self._forwards(vectorize(point.coord)), frame_id)
-        elif point.frame_id == self.to_frame_id and frame_id == self.from_frame_id:
+        elif point.frame_id == self.target_frame and frame_id == self.source_frame:
             return Point2D(self._backwards(vectorize(point.coord)), frame_id)
         else:
             raise LookupException(
-                "Lookup error: can not transform point from %s to %s as the transform is still empty" % point.frame_id, frame_id)
+                "Lookup error: can not transform point from %s to %s as the transform is still empty" % (point.frame_id, frame_id))
 
     def _forwards(self, coord):
         # type: (np.typing.ArrayLike) -> np.typing.ArrayLike
@@ -109,7 +66,7 @@ class Transform(object):
         translates 2d coordinate with and angle and than translation
         coord: 2D coords [x, y]
         """
-        return np.matmul(self.Rinv, coord) - self.T - self.translation
+        return np.matmul(self.R.T, coord) - self.T
 
     def _backwards(self, coord):
         # type: (np.typing.ArrayLike) -> np.typing.ArrayLike
@@ -117,7 +74,7 @@ class Transform(object):
         translates 2d coordiante with -translation and than -angle
         coord: 2D coords [x, y]
         """
-        return np.matmul(self.R, coord + self.T + self.translation)
+        return np.matmul(self.R, coord + self.T)
 
 
 def distance(point1, point2):
@@ -125,6 +82,31 @@ def distance(point1, point2):
     if point1.frame_id != point2.frame_id:
         raise ValueError("Frame mismatch: cannot compute distance between points, as they are defined in different frames")
     return math.sqrt(np.sum(np.power(np.subtract(point1.coord, point2.coord), 2)))
+
+
+def image_transform(source_frame, target_frame, shape, angle, tx=0.0, ty=0.0):
+    # type: (str, str, typing.Tuple[int, int], float, float, float) -> Transform
+    """
+    Args:
+        source_frame: transform from frame name
+        target_frame: transform to frame name
+        shape: The image shape.
+        angle: angle of rotation in radians (counter clockwise is positive)
+        translation: translation [x,y]
+    """
+    height, width = shape
+
+    # Translation vector due to rotation
+    if angle > 0:
+        tx_rotation, ty_rotation = (0.0, -np.sin(angle) * width)
+    else:
+        tx_rotation, ty_rotation = (np.sin(angle) * height, 0.0)
+
+    # Translation vector due to > 90deg rotations
+    if (angle < -np.pi/2) or (angle > np.pi/2):
+        tx_rotation, ty_rotation = (tx_rotation + np.cos(angle) * width, ty_rotation + np.cos(angle) * height)
+
+    return Transform(source_frame, target_frame, angle, tx_rotation + tx, ty_rotation + ty)
 
 
 class LookupException(Exception):
@@ -159,6 +141,21 @@ def vectorize(data):
             return coord
         else:
             raise ValueError("Shape mismatch: Expected numpy array has shape (1, 2) or (2,1), but has %s" % data.shape)
+
+
+def rotation_matrix(angle):
+    # type: (float) -> np.typing.ArrayLike
+    """Construct a 2D rotation matrix from a provided angle.
+
+    Args:
+        angle: The angle in radians.
+
+    Returns:
+        The rotation matrix
+    """
+    cos_angle = np.cos(angle)
+    sin_angle = np.sin(angle)
+    return np.array([[cos_angle, -sin_angle], [sin_angle, cos_angle]])
 
 
 def main():

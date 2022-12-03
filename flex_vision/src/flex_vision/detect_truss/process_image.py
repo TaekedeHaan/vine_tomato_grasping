@@ -61,7 +61,7 @@ class ProcessImage(object):
         # crop
         self.bbox = None
         self.angle = 0.0
-        self.transform = geometry.Transform(self.ORIGINAL_FRAME_ID, self.LOCAL_FRAME_ID)  # identity
+        self.transform = geometry.Transform(self.ORIGINAL_FRAME_ID, self.LOCAL_FRAME_ID, 0.0, 0.0, 0.0)  # identity
 
         self.truss_crop = None
         self.tomato_crop = None
@@ -214,21 +214,21 @@ class ProcessImage(object):
             logger.warning("Cannot crop based on truss segment since it is empty")
             return False
 
-        bbox = imgpy.bbox(truss_rotate)
-        x = bbox[0]  # col
-        y = bbox[1]  # rows to upper left corner
+        self.bbox = imgpy.bbox(truss_rotate)
 
-        translation = [x, y]
-        xy_shape = [self.shape[1], self.shape[0]]  # [width, height]
-        self.transform = geometry.Transform(self.ORIGINAL_FRAME_ID, self.LOCAL_FRAME_ID, xy_shape, angle=-angle,
-                                            translation=translation)
+        self.transform = geometry.image_transform(
+            self.ORIGINAL_FRAME_ID,
+            self.LOCAL_FRAME_ID,
+            self.shape,
+            angle=-angle,
+            tx=self.bbox[0],
+            ty=self.bbox[1]
+        )
 
-        self.bbox = bbox
         self.angle = angle
-
         self.tomato_crop = imgpy.cut(tomato_rotate, self.bbox)
         self.peduncle_crop = imgpy.cut(peduncle_rotate, self.bbox)
-        self.img_rgb_crop = imgpy.crop(self.img_rgb, angle=-angle, bounding_box=bbox)
+        self.img_rgb_crop = imgpy.crop(self.img_rgb, angle=-angle, bounding_box=self.bbox)
         self.truss_crop = imgpy.cut(truss_rotate, self.bbox)
         logger.debug("Successfully cropped image")
 
