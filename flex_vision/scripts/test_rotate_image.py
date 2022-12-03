@@ -29,16 +29,16 @@ def main():
 
     for angle in np.linspace(-np.pi, np.pi, 40):
         transform = Transform(original_frame, local_frame, [width, height], angle)
-        point = Point2D(xy_original, original_frame, transform)
+        point = Point2D(xy_original, original_frame)
 
         # create and rotate image
         img = np.full([height, width], 100, dtype=np.uint8)
         img[xy_original[1], xy_original[0]] = vmax
         img_rotate = img.copy().rotate(angle)
 
-        coord_r = point.get_coord(local_frame)
-        point_new = Point2D(coord_r, local_frame, transform)
-        coord_p = point_new.get_coord(original_frame)
+        point_new = Point2D(coord_r, local_frame)
+        coord_r = transform.apply(point, local_frame).coord()
+        coord_p = transform.apply(point_new, original_frame).coord()
 
         fig = plt.figure()
         plt.subplot(2, 2, 1)

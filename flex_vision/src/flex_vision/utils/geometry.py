@@ -3,61 +3,25 @@ from typing import TYPE_CHECKING
 
 # External imports
 import numpy as np
+from flex_vision import constants
 
 if TYPE_CHECKING:
     import typing
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("flex_vision")
 
 
 class Point2D(object):
     """ Class used for storing two-dimensional coordinate with respect to a certain reference frame """
 
-    def __init__(self, coord, frame_id, transform=None):
-        # type: (typing.Any, str, typing.Optional[Transform]) -> None
+    def __init__(self, coord, frame_id):
+        # type: (typing.Any, str) -> None
         """
         coord: two-dimensional coordinates as [x, y]
         frame_id: the name of the frame
         """
         self._coord = vectorize(coord)
         self.frame_id = frame_id
-        self.transform = transform
-
-    def get_coord(self, frame_id):
-        # type: (str) -> typing.List[float]
-        """
-        Get the coordinate of a two-dimensional point, with respect to a certain frame
-        """
-        if self.frame_id == frame_id:
-            return self.coord
-        elif self.transform is None:
-            raise LookupException(
-                "Lookup error: can not transform point from %s to %s as the transform is still empty", self.frame_id, frame_id)
-        else:
-            coord = self.transform.apply(self, frame_id)
-            return coord[:, 0].tolist()
-
-    def dist(self, points):
-        # type: (Point2D) -> float
-        """
-        Calculate the distance between two points
-        """
-
-        if isinstance(points, (list, tuple)):
-            distances = []
-
-            for point in points:
-                distances.append(self._dist(point))
-
-            return distances
-
-        else:
-            return self._dist(points)
-
-    def _dist(self, point):
-        # type: (Point2D) -> float
-        coord = point.get_coord(self.frame_id)
-        return np.sqrt(np.sum(np.power(np.subtract(self.coord, coord), 2)))
 
     @property
     def coord(self):
@@ -120,22 +84,22 @@ class Transform(object):
         else:
             self.translation = np.zeros((2, 1))
 
-    def apply(self, point, to_frame_id):
-        # typing: (Point2D, str) -> np.typing.ArrayLike
+    def apply(self, point, frame_id):
+        # typing: (Point2D, str) -> Point2D
         """
         Applies transform to a given point to a given frame
         point: Point object
-        to_frame_id: string, name of frame id
+        frame_id: string, name of frame id
         """
-        if point.frame_id == to_frame_id:
-            return vectorize(point.coord)
-        if point.frame_id == self.from_frame_id and to_frame_id == self.to_frame_id:
-            return self._forwards(vectorize(point.coord))
-        elif point.frame_id == self.to_frame_id and to_frame_id == self.from_frame_id:
-            return self._backwards(vectorize(point.coord))
+        if point.frame_id == frame_id:
+            return point
+        if point.frame_id == self.from_frame_id and frame_id == self.to_frame_id:
+            return Point2D(self._forwards(vectorize(point.coord)), frame_id)
+        elif point.frame_id == self.to_frame_id and frame_id == self.from_frame_id:
+            return Point2D(self._backwards(vectorize(point.coord)), frame_id)
         else:
             raise LookupException(
-                "Lookup error: can not transform point from %s to %s as the transform is still empty", point.frame_id, to_frame_id)
+                "Lookup error: can not transform point from %s to %s as the transform is still empty", point.frame_id, frame_id)
 
     def _forwards(self, coord):
         # type: (np.typing.ArrayLike) -> np.typing.ArrayLike
@@ -154,43 +118,38 @@ class Transform(object):
         return np.matmul(self.R, coord + self.T + self.translation)
 
 
+def distance(point1, point2):
+    # type: (Point2D, Point2D) -> float
+    if point1.frame_id != point2.frame_id:
+        raise ValueError("Frame mismatch: cannot compute distance between points, as they are defined in different frames")
+    return np.sqrt(np.sum(np.power(np.subtract(point1.coord, point2.coord), 2)))
+
+
 class LookupException(Exception):
     """Exception raised for failed to lookup a transform."""
     pass
 
 
-def points_from_coords(coords, frame, transform=None):
+def points_from_coords(coords, frame):
     "Takes a list of coordinates, and outputs a list of Point2D"
-    if coords is None:
-        return None
-
-    point_list = []
-    for coord in coords:
-        point = Point2D(coord, frame, transform)
-        point_list.append(point)
-
-    return point_list
+    return [Point2D(coord, frame) for coord in coords]
 
 
-def coords_from_points(point_list, frame):
+def coords_from_points(transform, points, frame):
     """Takes a list of points, and outputs a list of coordinates"""
-    coords = []
-    for point in point_list:
-        coords.append(point.get_coord(frame))
-
-    return coords
+    return [transform.apply(point, frame).coord for point in points]
 
 
 def vectorize(data):
     """Takes a list, tuple or numpy array and returns a column vector"""
     if isinstance(data, (list, tuple)):
-        logger.info("list/tuple")
+        # logger.info("list/tuple")
         if len(data) != 2:
             raise ValueError("Length mismatch: Expected list or tuple has 2 elements, but has %d elements", len(data))
         return np.array(data, ndmin=2).transpose()
 
     elif isinstance(data, np.ndarray):
-        logger.info("numpy array")
+        # logger.info("numpy array")
         coord = np.array(data, ndmin=2)
         if coord.shape == (1, 2):
             return coord.transpose()
@@ -208,17 +167,20 @@ def main():
 
     frame_id = 'origin'
     coord = [0, 0]
-    point1 = Point2D(coord, frame_id, transform)
+    point1 = Point2D(coord, frame_id)
 
     frame_id = 'local'
     coord = [0, 0]
-    point2 = Point2D(coord, frame_id, transform)
+    point2 = Point2D(coord, frame_id)
 
     for frame_id in ['origin', 'local']:
-        print('point 1 in ', frame_id, ': ', point1.get_coord(frame_id))
-        print('point 2 in ', frame_id, ': ', point2.get_coord(frame_id))
+        logger.info("point 1 in %s: %s", frame_id, transform.apply(point1, frame_id).coord)
+        logger.info("point 2 in %s: %s", frame_id, transform.apply(point2, frame_id).coord)
 
-    print('distance between points: ', point1.dist(point2))
+    point1_local = transform.apply(point1, 'local')
+    point2_local = transform.apply(point2, 'local')
+    logger.info("Distance between points: %.3f", distance(point1_local, point2_local))
+    # print('distance between points: ', point1.dist(point2))
 
 
 if __name__ == '__main__':

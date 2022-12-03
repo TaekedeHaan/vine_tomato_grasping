@@ -3,6 +3,7 @@ import json
 import os
 import logging
 import math
+from typing import TYPE_CHECKING
 
 # External imports
 import numpy as np
@@ -11,7 +12,7 @@ from matplotlib import pyplot as plt
 
 # Flex vision imports
 from flex_vision.utils import imgpy
-from flex_vision.utils.geometry import Point2D, Transform, points_from_coords, coords_from_points
+from flex_vision.utils import geometry
 from flex_vision.utils.timer import Timer
 
 from flex_vision.utils.util import save_img, save_fig, figure_to_image
@@ -23,6 +24,9 @@ from flex_vision.detect_truss.detect_peduncle_2 import detect_peduncle, visualiz
 from flex_vision.detect_truss.detect_tomato import detect_tomato
 from flex_vision.detect_truss.segment_image import segment_truss
 from flex_vision.detect_truss import settings
+
+if TYPE_CHECKING:
+    import typing
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +60,7 @@ class ProcessImage(object):
         # crop
         self.bbox = None
         self.angle = 0.0
-        self.transform = Transform(self.ORIGINAL_FRAME_ID, self.LOCAL_FRAME_ID)  # identity
+        self.transform = geometry.Transform(self.ORIGINAL_FRAME_ID, self.LOCAL_FRAME_ID)  # identity
 
         self.truss_crop = None
         self.tomato_crop = None
@@ -64,14 +68,14 @@ class ProcessImage(object):
         self.img_rgb_crop = None
 
         # tomatoes
-        self.centers = None
-        self.radii = None
-        self.com = None
+        self.centers = []  # type: typing.List[geometry.Point2D]
+        self.radii = []    # type: typing.List[float]
+        self.com = None   # type: typing.Optional[geometry.Point2D]
 
         # stem
-        self.junction_points = None
-        self.end_points = None
-        self.peduncle_points = None
+        self.junction_points = []  # type: typing.List[geometry.Point2D]
+        self.end_points = []  # type: typing.List[geometry.Point2D]
+        self.peduncle_points = []  # type: typing.List[geometry.Point2D]
         self.branch_data = None
 
         # grasp location
@@ -215,8 +219,8 @@ class ProcessImage(object):
 
         translation = [x, y]
         xy_shape = [self.shape[1], self.shape[0]]  # [width, height]
-        self.transform = Transform(self.ORIGINAL_FRAME_ID, self.LOCAL_FRAME_ID, xy_shape, angle=-angle,
-                                   translation=translation)
+        self.transform = geometry.Transform(self.ORIGINAL_FRAME_ID, self.LOCAL_FRAME_ID, xy_shape, angle=-angle,
+                                            translation=translation)
 
         self.bbox = bbox
         self.angle = angle
@@ -251,8 +255,8 @@ class ProcessImage(object):
 
         # convert obtained coordinated to two-dimensional points linked to a coordinate frame
         self.radii = radii
-        self.centers = points_from_coords(centers, self.LOCAL_FRAME_ID, self.transform)
-        self.com = Point2D(com, self.LOCAL_FRAME_ID, self.transform)
+        self.centers = geometry.points_from_coords(centers, self.LOCAL_FRAME_ID)
+        self.com = geometry.Point2D(com, self.LOCAL_FRAME_ID)
 
         if centers is None or not centers.any():
             logger.warning("Failed to detect any tomatoes in image %s", self.name)
@@ -278,9 +282,9 @@ class ProcessImage(object):
                                                                      name=self.name,
                                                                      pwd=pwd)
         # convert to 2D points
-        self.peduncle_points = points_from_coords(np.argwhere(mask)[:, (1, 0)], self.LOCAL_FRAME_ID, self.transform)
-        self.junction_points = points_from_coords(junc_coords, self.LOCAL_FRAME_ID, self.transform)
-        self.end_points = points_from_coords(end_coords, self.LOCAL_FRAME_ID, self.transform)
+        self.peduncle_points = geometry.points_from_coords(np.argwhere(mask)[:, (1, 0)], self.LOCAL_FRAME_ID)
+        self.junction_points = geometry.points_from_coords(junc_coords, self.LOCAL_FRAME_ID)
+        self.end_points = geometry.points_from_coords(end_coords, self.LOCAL_FRAME_ID)
 
         # extract branch data
         for branch_type in branch_data:
@@ -288,10 +292,9 @@ class ProcessImage(object):
                 for lbl in ['coords', 'src_node_coord', 'dst_node_coord', 'center_node_coord']:
 
                     if lbl == 'coords':
-                        branch_data[branch_type][i][lbl] = points_from_coords(branch[lbl], self.LOCAL_FRAME_ID,
-                                                                              self.transform)
+                        branch_data[branch_type][i][lbl] = geometry.points_from_coords(branch[lbl], self.LOCAL_FRAME_ID)
                     else:
-                        branch_data[branch_type][i][lbl] = Point2D(branch[lbl], self.LOCAL_FRAME_ID, self.transform)
+                        branch_data[branch_type][i][lbl] = geometry.Point2D(branch[lbl], self.LOCAL_FRAME_ID)
 
         self.branch_data = branch_data
 
@@ -321,8 +324,8 @@ class ProcessImage(object):
         branches_i = []
         for branch_i, branch in enumerate(self.branch_data['junction-junction']):
             if branch['length'] > minimum_grasp_length_px:
-                src_node_dist = branch['src_node_coord'].dist(branch['coords'])
-                dst_node_dist = branch['dst_node_coord'].dist(branch['coords'])
+                src_node_dist = [geometry.distance(branch['src_node_coord'], coord) for coord in branch['coords']]
+                dst_node_dist = [geometry.distance(branch['dst_node_coord'], coord) for coord in branch['coords']]
                 is_true = np.logical_and(
                     (np.array(dst_node_dist) > 0.5 * minimum_grasp_length_px),
                     (np.array(src_node_dist) > 0.5 * minimum_grasp_length_px)
@@ -342,7 +345,7 @@ class ProcessImage(object):
             return False
 
         # Select optimal grasp location
-        i_grasp = np.argmin(self.com.dist(points_keep))
+        i_grasp = np.argmin([geometry.distance(self.com, point_keep) for point_keep in points_keep])
         grasp_point = points_keep[i_grasp]
         branch_i = branches_i[i_grasp]
 
@@ -363,7 +366,7 @@ class ProcessImage(object):
         brightness = 0.85
 
         for frame_id in [self.LOCAL_FRAME_ID, self.ORIGINAL_FRAME_ID]:
-            grasp_coord = self.grasp_point.get_coord(frame_id)
+            grasp_coord = self.transform.apply(grasp_point, frame_id).coord
 
             if frame_id == self.LOCAL_FRAME_ID:
                 grasp_angle = self.grasp_angle_local
@@ -375,7 +378,7 @@ class ProcessImage(object):
 
             img_rgb_bright = change_brightness(img_rgb, brightness)
             branch_image = np.zeros(img_rgb_bright.shape[0:2], dtype=np.uint8)
-            coords = np.rint(coords_from_points(points_keep, frame_id)).astype(np.int)
+            coords = np.rint(geometry.coords_from_points(self.transform, points_keep, frame_id)).astype(np.int)
             branch_image[coords[:, 1], coords[:, 0]] = 255
 
             if frame_id == self.ORIGINAL_FRAME_ID:
@@ -403,8 +406,8 @@ class ProcessImage(object):
             col = []
 
         else:
-            xy_centers = coords_from_points(self.centers, target_frame_id)
-            xy_com = self.com.get_coord(target_frame_id)
+            xy_centers = geometry.coords_from_points(self.transform, self.centers, target_frame_id)
+            xy_com = self.transform.apply(self.com, target_frame_id).coord
             radii = self.radii.tolist()
 
             row = [xy_center[1] for xy_center in xy_centers]
@@ -421,9 +424,9 @@ class ProcessImage(object):
         else:
             frame_id = self.ORIGINAL_FRAME_ID
 
-        peduncle_xy = coords_from_points(self.peduncle_points, frame_id)
-        junc_xy = coords_from_points(self.junction_points, frame_id)
-        end_xy = coords_from_points(self.end_points, frame_id)
+        peduncle_xy = geometry.coords_from_points(self.transform, self.peduncle_points, frame_id)
+        junc_xy = geometry.coords_from_points(self.transform, self.junction_points, frame_id)
+        end_xy = geometry.coords_from_points(self.transform, self.end_points, frame_id)
         peduncle = {'junctions': junc_xy, 'ends': end_xy, 'peduncle': peduncle_xy}
         return peduncle
 
@@ -436,7 +439,7 @@ class ProcessImage(object):
             frame_id = self.ORIGINAL_FRAME_ID
             angle = self.grasp_angle_global
         if self.grasp_point is not None:
-            xy = self.grasp_point.get_coord(frame_id)
+            xy = self.transform.apply(self.grasp_point, frame_id).coord
             grasp_pixel = np.around(xy).astype(int)
             row = grasp_pixel[1]
             col = grasp_pixel[0]
@@ -472,8 +475,8 @@ class ProcessImage(object):
             zoom = False
 
         img_rgb = self.get_rgb(local=local)
-        centers = coords_from_points(self.centers, frame)
-        com = coords_from_points(self.com, frame)
+        centers = geometry.coords_from_points(self.transform, self.centers, frame)
+        com = self.transform.apply(self.com, frame).coord
 
         tomato = {'centers': centers, 'radii': self.radii, 'com': com}
         plot_features(img_rgb, tomato=tomato, zoom=zoom)
@@ -505,11 +508,11 @@ class ProcessImage(object):
 
         grasp = self.get_grasp_location(local=local)
         tomato = self.get_tomatoes(local=local)
-        xy_junc = coords_from_points(self.junction_points, frame_id)
+        xy_junc = geometry.coords_from_points(self.transform, self.junction_points, frame_id)
         img = self.get_rgb(local=local)
 
         # generate peduncle image
-        xy_peduncle = coords_from_points(self.peduncle_points, frame_id)
+        xy_peduncle = geometry.coords_from_points(self.transform, self.peduncle_points, frame_id)
         rc_peduncle = np.around(np.array(xy_peduncle)).astype(np.int)[:, (1, 0)]
         arr = np.zeros(shape, dtype=np.uint8)
         arr[rc_peduncle[:, 0], rc_peduncle[:, 1]] = 1
