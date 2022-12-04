@@ -4,10 +4,18 @@
 
 # External imports
 import cv2
+import logging
 import numpy as np
+from typing import TYPE_CHECKING
 
 # Flex vision imports
 from flex_vision.utils.util import plot_features
+
+if TYPE_CHECKING:
+    # pylint: disable=unused-import
+    import typing
+
+logger = logging.getLogger(__name__)
 
 
 def compute_com(centers, radii):
@@ -19,33 +27,47 @@ def compute_com(centers, radii):
     return np.array((radii ** 3) * centers / (np.sum(radii ** 3)))
 
 
-def detect_tomato(img_segment, settings=None, px_per_mm=None, img_rgb=None,
-                  save=False, pwd="", name=""):
+def detect_tomato(img_segment,     # type: typing.Optional[np.ndarray]
+                  settings=None,   # type: typing.Optional[typing.Dict[str, typing.Any]]
+                  px_per_mm=None,  # type: typing.Optional[float]
+                  img_rgb=None,    # type: typing.Optional[np.ndarray]
+                  save=False,      # type: bool
+                  pwd="",          # type: str
+                  name=""          # type: str
+                  ):
+    # type: (...) -> typing.Tuple(typing.Any, typing.Any, typing.Amy)
+    """ Detect tomatoes in a provided image
 
-    if img_rgb is None:
-        img_rgb = img_segment
+    Args:
+        img_segment: The segment in which to detect the tomatoes.
+        settings: The detect tomato settings dictionary. Default to None.
+        px_per_mm: The pixels per millimeter estimate. If provided the tomato sizes can be limited in millimeters. Default to None.
+        img_rgb: The RGB image, used for plotting. Default to None.
+        save: Save the image is set to True. Defaults to False.
+        pwd: The path to store the saved image. Defaults to "".
+        name: The file name to use when saving the image. Defaults to "".
 
-    if settings is None:
-        settings = settings.detect_tomato()
+    Returns:
+        centers: The tomato center locations in the provided image.
+        radii: The estimated tomato radii in the provided image.
+        com: The estimated center of mass.
+    """
+    img_rgb = img_rgb if img_rgb is not None else img_segment
+    settings = settings if settings is not None else settings.detect_tomato()
 
-    # set dimensions
+    # Set settings
     if px_per_mm:
         radius_min_px = int(round(px_per_mm * settings['radius_min_mm']))
         radius_max_px = int(round(px_per_mm * settings['radius_max_mm']))
-        distance_min_px = radius_min_px * 2
     else:
         dim = img_segment.shape
         radius_min_px = dim[1] / settings['radius_min_frac']
         radius_max_px = dim[1] / settings['radius_max_frac']
-        distance_min_px = radius_min_px * 2
+    distance_min_px = radius_min_px * 2
 
     # Hough requires a gradient, thus the image is blurred
     blur_size = settings['blur_size']
     truss_blurred = cv2.GaussianBlur(img_segment, (blur_size, blur_size), 0)
-
-    # intialize
-    centers_overlap = radii_overlap = com_overlap = None
-    centers = radii = com = None
 
     # fit circles: [x, y, radius]
     circles = cv2.HoughCircles(truss_blurred,
@@ -58,32 +80,29 @@ def detect_tomato(img_segment, settings=None, px_per_mm=None, img_rgb=None,
                                maxRadius=radius_max_px)
 
     if circles is not None:
+        centers, radii = circles[0][:, :2], circles[0][:, 2]  # [x, y, r]
+        com = compute_com(centers, radii)
+    else:
+        centers, radii, com = [], [], None
 
-        centers_overlap = circles[0][:, 0:2]  # [x, y, r]
-        radii_overlap = circles[0][:, 2]
-        com_overlap = compute_com(centers_overlap, radii_overlap)
-        n_overlap = len(radii_overlap)
+    n_detected = len(radii)
+    if save:
+        tomato = {'centers': centers, 'radii': radii, 'com': com}
+        plot_features(img_rgb, tomato=tomato, pwd=pwd, file_name=name + '_1', zoom=True)
 
-        # remove circles which do not overlapp with the tomato segment
-        i_keep = find_overlapping_tomatoes(centers_overlap,
-                                           radii_overlap,
-                                           img_segment,
-                                           ratio_threshold=settings['ratio_threshold'])
+    # Remove the circles which do not overlap with the tomato segment
+    i_keep = find_overlapping_tomatoes(centers, radii, img_segment, ratio_threshold=settings['ratio_threshold'])
+    if len(i_keep) != 0:
+        centers = centers[i_keep, :]
+        radii = radii[i_keep]
+        com = compute_com(centers, radii)
 
-        n = len(i_keep)
-        if n != n_overlap:
-            print('removed', n_overlap - n, 'tomaoto(es) based on overlap')
-
-        if len(i_keep) != 0:
-            centers = centers_overlap[i_keep, :]
-            radii = radii_overlap[i_keep]
-            com = compute_com(centers, radii)
+    if len(i_keep) != n_detected:
+        logger.info("Removed %d tomato(es) based on overlap", n_detected - len(i_keep))
 
     # visualize result
     if save:
         tomato = {'centers': centers, 'radii': radii, 'com': com}
-        tomato_overlap = {'centers': centers_overlap, 'radii': radii_overlap, 'com': com_overlap}
-        plot_features(img_rgb, tomato=tomato_overlap, pwd=pwd, file_name=name + '_1', zoom=True)
         plot_features(img_rgb, tomato=tomato, pwd=pwd, file_name=name + '_2', zoom=True)
 
     return centers, radii, com
