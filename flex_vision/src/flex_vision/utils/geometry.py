@@ -1,216 +1,188 @@
+""" geometry.py: contains several classes and functions for tracking points in 2D. """
+import logging
+import math
+from typing import TYPE_CHECKING
+
 # External imports
 import numpy as np
 
+if TYPE_CHECKING:
+    # pylint: disable=unused-import
+    import typing
+
+logger = logging.getLogger(__name__)
+
 
 class Point2D(object):
-    """
-    class used for storing two-dimensional points, and getting the coordiante of a point with respect to a certain
-    reference frame
-    """
+    """ Class used for storing two-dimensional coordinate with respect to a certain reference frame """
 
-    # TODO: currently only a single transform is supported.
-    def __init__(self, coord, frame_id, transform=None):
-        """
-        coord: two-dimensional coordinates as [x, y]
-        frame_id: the name of the frame
+    def __init__(self, coord, frame_id):
+        # type: (typing.Any, str) -> None
+        """ Construct a Point2D object.
+
+        Args:
+            coord: two-dimensional coordinates as [x, y].
+            frame_id: The frame ID.
         """
         self._coord = vectorize(coord)
         self.frame_id = frame_id
-        self.transform = transform
-
-    def get_coord(self, frame_id):
-        """
-        Get the coordinate of a two-dimensional point, with respect to a certain frame
-        """
-        if self.frame_id == frame_id:
-            return self.coord
-        elif self.transform is None:
-            raise MissingTransformError(self.transform, from_frame=self.frame_id, to_frame=frame_id)
-        else:
-            coord = self.transform.apply(self, frame_id)
-            return coord[:, 0].tolist()
-
-    def dist(self, points):
-        """
-        Calculate the distance between two points
-        """
-
-        if isinstance(points, (list, tuple)):
-            distances = []
-
-            for point in points:
-                distances.append(self._dist(point))
-
-            return distances
-
-        else:
-            return self._dist(points)
-
-    def _dist(self, point):
-        # TODO: we can also apply the transform stored in point(s)
-
-        transform = self.transform
-
-        if (self.frame_id != point.frame_id) and (transform is None):
-            raise MissingTransformError(transform, from_frame=self.frame_id, to_frame=point.frame_id)
-
-        else:  # (self.frame_id == point.frame_id) or (transform is not None):
-            coord = point.get_coord(self.frame_id)
-            return np.sqrt(np.sum(np.power(np.subtract(self.coord, coord), 2)))
 
     @property
     def coord(self):
-        return self._coord[:, 0].tolist()
+        # type: () -> typing.List[float]
+        return self._coord[:, 0].tolist()  # type: ignore
 
 
 class Transform(object):
-    """
-    Very simple class used for storing a two-dimensional transformation, and applying it to two-dimensional points
-    Note that it does not support multiple transformations or and successive transformations.
-    """
+    """ Class used for storing a two-dimensional transformation, and applying it to two-dimensional points """
 
-    # TODO: move from row, column coordinates to xy, to make things less confusing.
+    def __init__(self, source_frame, target_frame, angle=0.0, tx=0.0, ty=0.0):
+        # type: (str, str, float, float, float) -> None
+        """ Construct a Transform object
 
-    def __init__(self, from_frame_id, to_frame_id, dim=None, angle=None, translation=None):
+        Args:
+            source_frame: The source frame where to transform from.
+            target_frame: The target frame where to transform to.
+            angle: The angle in radians. Defaults to 0.0.
+            tx: The translation in x direction. Defaults to 0.0.
+            ty: The translation in y direction. Defaults to 0.0.
         """
-        from_frame_id: transform from frame name
-        to_frame_id: transform to frame name
-        dim: image dimensions [width, height]
-        angle: angle of rotation in radians (counter clockwise is positive)
-        translation: translation [x,y]
+        self.source_frame = source_frame
+        self.target_frame = target_frame
+        self.R = rotation_matrix(angle)
+        self.T = vectorize([tx, ty])
+
+    def apply(self, point, frame_id):
+        # type: (Point2D, str) -> Point2D
+        """ Apply the transform to a given point to a given frame.
+
+        Args:
+            point: The point to transform.
+            frame_id: The frame ID to transform to.
         """
-        if (dim is not None) and (angle is not None):
-            height = dim[1]
-            width = dim[0]
-
-            # Rotation matrix
-            R = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
-
-            # Translation vector due to rotation
-            if angle > 0:
-                T1 = [0, -np.sin(angle) * width]
-            else:
-                T1 = [np.sin(angle) * height, 0]
-
-            # Translation vector due to >90deg rotations
-            if (angle < -np.pi/2) or (angle > np.pi/2):
-                T2 = [np.cos(angle) * width, np.cos(angle) * height]
-            else:
-                T2 = [0, 0]
-
-            T = vectorize(T1) + vectorize(T2)
-
+        if point.frame_id == frame_id:
+            return point
+        if point.frame_id == self.source_frame and frame_id == self.target_frame:
+            return Point2D(self._forwards(vectorize(point.coord)), frame_id)
+        elif point.frame_id == self.target_frame and frame_id == self.source_frame:
+            return Point2D(self._backwards(vectorize(point.coord)), frame_id)
         else:
-            R = np.identity(2)
-            T = np.zeros((2, 1))
-
-            if angle is not None:
-                print "Did not specify image dimensions, ignoring rotation!"
-
-        self.from_frame_id = from_frame_id
-        self.to_frame_id = to_frame_id
-        self.R = R
-        self.Rinv = np.linalg.inv(self.R)
-        self.T = T
-        if translation is not None:
-            self.translation = vectorize(translation)
-        else:
-            self.translation = np.zeros((2, 1))
-
-    def apply(self, point, to_frame_id):
-        """
-        Applies transform to a given point to a given frame
-        point: Point object
-        to_frame_id: string, name of frame id
-        """
-        if point.frame_id == to_frame_id:
-            return vectorize(point.coord)
-        if point.frame_id == self.from_frame_id and to_frame_id == self.to_frame_id:
-            return self._forwards(vectorize(point.coord))
-        elif point.frame_id == self.to_frame_id and to_frame_id == self.from_frame_id:
-            return self._backwards(vectorize(point.coord))
-        else:
-            raise MissingTransformError(self, from_frame=point.frame_id, to_frame=to_frame_id)
+            raise LookupException(
+                "Lookup error: can not transform point from %s to %s as the transform is still empty" % (point.frame_id, frame_id))
 
     def _forwards(self, coord):
+        # type: (np.typing.ArrayLike) -> np.typing.ArrayLike
+        """ Apply the transform forwards to the provided coordinate.
+
+        Args:
+            coord: The coordinate to which to apply the transform.
+
+        Returns:
+            The transformed coordinate.
         """
-        translates 2d coordinate with and angle and than translation
-        coord: 2D coords [x, y]
-        """
-        return np.matmul(self.Rinv, coord) - self.T - self.translation
+        return np.matmul(self.R.T, coord) - self.T
 
     def _backwards(self, coord):
+        # type: (np.typing.ArrayLike) -> np.typing.ArrayLike
+        """ Apply the transform backwards to the provided coordinate.
+
+        Args:
+            coord: The coordinate to which to apply the transform.
+
+        Returns:
+            The transformed coordinate.
         """
-        translates 2d coordiante with -translation and than -angle
-        coord: 2D coords [x, y]
-        """
-        return np.matmul(self.R, coord + self.T + self.translation)
+        return np.matmul(self.R, coord + self.T)
 
 
-class MissingTransformError(Exception):
-    """Exception raised for errors in the input."""
+def distance(point1, point2):
+    # type: (Point2D, Point2D) -> float
+    """Compute the euclidean distance between two provided 2D-points.
 
-    def __init__(self, transform=None, from_frame=None, to_frame=None):
-        super(MissingTransformError, self).__init__()
-        self.transform = transform
-        self.from_frame = from_frame
-        self.to_frame = to_frame
+    Args:
+        point1: The first point.
+        point2: The second point.
 
-    def __str__(self):
-        if (self.transform is None) and (self.from_frame is not None) and (self.to_frame is not None):
-            return "Cannot transform from " + self.from_frame + " frame to " + self.to_frame + " frame, transform is empty!"
-        elif self.transform is None:
-            return "Cannot transform, transform is empty!"
-        else:
-            return "Cannot transform from " + self.from_frame + " frame to " + self.to_frame + " frame, transform unknown!"
+    Raises:
+        ValueError: If the points are defined with respect to different frames. 
 
-
-class LengthMismatchError(Exception):
-    """Exception raised for errors in the input."""
-
-    def __init__(self, given_length=None, desired_length=None):
-        super(LengthMismatchError, self).__init__()
-        self.given_length = given_length
-        self.desired_length = desired_length
-
-    def __str__(self):
-        if (self.given_length is not None) and (self.desired_length is not None):
-            return "Provided wrong length: you gave " + str(self.given_length) + ", but should be " + str(self.desired_length) + "!"
-        elif self.desired_length is not None:
-            return "Provided wrong length: please provide an input of length" + str(self.desired_length) + "!"
-        else:
-            return "Provided wrong length!"
+    Returns:
+        The Euclidean distance.
+    """
+    if point1.frame_id != point2.frame_id:
+        raise ValueError("Frame mismatch: cannot compute distance between points, as they are defined in different frames")
+    return math.sqrt(np.sum(np.power(np.subtract(point1.coord, point2.coord), 2)))
 
 
-def points_from_coords(coords, frame, transform=None):
-    "Takes a list of coordinates, and outputs a list of Point2D"
-    if coords is None:
-        return None
+def image_transform(source_frame, target_frame, shape, angle, tx=0.0, ty=0.0):
+    # type: (str, str, typing.Tuple[int, int], float, float, float) -> Transform
+    """ Compute the transform which results from cropping and rotating an image.
 
-    point_list = []
-    for coord in coords:
-        point = Point2D(coord, frame, transform)
-        point_list.append(point)
+    Args:
+        source_frame: transform from frame name
+        target_frame: transform to frame name
+        shape: The image shape.
+        angle: angle of rotation in radians (counter clockwise is positive).
+        tx: translation in x-direction. Defaults to 0.0.
+        ty: translation in y-direction. Defaults to 0.0. 
+    """
+    height, width = shape
 
-    return point_list
+    # Translation due to rotation
+    if angle > 0:
+        tx_rotation, ty_rotation = (0.0, -np.sin(angle) * width)
+    else:
+        tx_rotation, ty_rotation = (np.sin(angle) * height, 0.0)
+
+    # Additional translation vector due to > 90deg rotation
+    if (angle < -np.pi/2) or (angle > np.pi/2):
+        tx_rotation += np.cos(angle) * width
+        ty_rotation += np.cos(angle) * height
+
+    return Transform(source_frame, target_frame, angle, tx_rotation + tx, ty_rotation + ty)
 
 
-def coords_from_points(point_list, frame):
-    """Takes a list of points, and outputs a list of coordinates"""
-    coords = []
-    for point in point_list:
-        coords.append(point.get_coord(frame))
+class LookupException(Exception):
+    """Exception raised for failed to lookup a transform."""
+    pass
 
-    return coords
+
+def points_from_coords(coords, frame):
+    # type: (typing.Any, str) -> typing.List[Point2D]
+    """ Construct a list of 2D points.
+
+    Args:
+        coords: The coordinates.
+        frame: The frame.
+
+    Returns:
+        List of 2D points.
+    """
+    return [Point2D(coord, frame) for coord in coords]
+
+
+def coords_from_points(points, transform, frame):
+    # type: (typing.List[Point2D], Transform, str) -> typing.List[typing.List[float]]
+    """ Constructs a list of coordinates with respect to a certain frame from a list of 2D points.
+
+    Args:
+        points: The list of 2D points.
+        transform: The transform.
+        frame: The target frame.
+
+    Returns:
+        A list of coordinates
+    """
+    return [transform.apply(point, frame).coord for point in points]
 
 
 def vectorize(data):
-    """Takes a list, tuple or numpy array and returns a column vector"""
+    # type: (typing.Any) -> np.typing.ArrayLike
+    """ Takes a list, tuple or numpy array and returns a column vector """
     if isinstance(data, (list, tuple)):
-        if len(data) == 2:
-            return np.array(data, ndmin=2).transpose()
-        else:
-            raise LengthMismatchError(given_length=len(data), desired_length=2)
+        if len(data) != 2:
+            raise ValueError("Length mismatch: Expected list or tuple has 2 elements, but has %d elements" % len(data))
+        return np.array(data, ndmin=2).transpose()
 
     elif isinstance(data, np.ndarray):
         coord = np.array(data, ndmin=2)
@@ -219,29 +191,19 @@ def vectorize(data):
         elif coord.shape == (2, 1):
             return coord
         else:
-            raise LengthMismatchError(desired_length=2)
+            raise ValueError("Shape mismatch: Expected numpy array has shape (1, 2) or (2,1), but has %s" % data.shape)
 
 
-def main():
+def rotation_matrix(angle):
+    # type: (float) -> np.typing.ArrayLike
+    """ Construct a 2D rotation matrix from a provided angle.
+
+    Args:
+        angle: The angle in radians.
+
+    Returns:
+        The rotation matrix
     """
-    Brief demo of the Point2d and Transform class
-    """
-    transform = Transform('origin', 'local', translation=(3, 4))
-
-    frame_id = 'origin'
-    coord = [0, 0]
-    point1 = Point2D(coord, frame_id, transform)
-
-    frame_id = 'local'
-    coord = [0, 0]
-    point2 = Point2D(coord, frame_id, transform)
-
-    for frame_id in ['origin', 'local']:
-        print 'point 1 in ', frame_id, ': ', point1.get_coord(frame_id)
-        print 'point 2 in ', frame_id, ': ', point2.get_coord(frame_id)
-
-    print 'distance between points: ', point1.dist(point2)
-
-
-if __name__ == '__main__':
-    main()
+    cos_angle = np.cos(angle)
+    sin_angle = np.sin(angle)
+    return np.array([[cos_angle, -sin_angle], [sin_angle, cos_angle]])

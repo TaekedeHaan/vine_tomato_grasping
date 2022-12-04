@@ -160,15 +160,15 @@ def change_brightness(image, brightness, copy=True):
 
 
 def angular_difference(alpha, beta):
-    # type: (float, float) -> float
+    # type: (np.typing.ArrayLike, np.typing.ArrayLike) -> np.typing.ArrayLike
     """ Compute the difference between two angles.
 
     Args:
-        alpha: An angle in radians.
-        beta: An angle in radians.
+        alpha: The angles in radians.
+        beta: The angles in radians.
 
     Returns:
-        The angular difference in radians.
+        The angular differences in radians.
     """
     return np.abs(np.arctan2(np.sin(alpha - beta), np.cos(alpha - beta)))
 
@@ -760,7 +760,6 @@ def plot_error(tomato_pred, tomato_act, error,
             kw['bbox']['fc'] = 'lightgrey'
             arrow_color = 'lightgrey'
 
-        # print center, label
         y = center[1]
         x = center[0]
 

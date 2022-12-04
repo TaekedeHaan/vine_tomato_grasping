@@ -148,7 +148,7 @@ def find_path(dist, pred, junc_nodes, end_nodes, pixel_coordinates, bg_image=Non
                         path.extend(subpath)
                         branch_data.append(subpath)
                         if len(subpath) == 0:
-                            print subpath
+                            print(subpath)
 
                         subpath = []  # TODO: was fist an empty list! from_node
 
@@ -290,7 +290,7 @@ def get_path(from_node, to_node, pred, dist, timeout=1000):
         to_node = pred[(from_node, to_node)]
 
     if count > 0.9 * timeout:
-        print count
+        print(count)
 
     return path, length
 
@@ -515,7 +515,7 @@ class PeduncleAnimation(object):
             self.bg_img = np.zeros(shape)
             self.shape = shape
         else:
-            print "Please provide either a shape or an background image"
+            print("Please provide either a shape or an background image")
 
         self.initialize_static_background()
 
@@ -540,17 +540,17 @@ class PeduncleAnimation(object):
         self.n_calls = self.n_calls % self.calls_per_frame
         if not self.n_calls == 0:
             self.n_calls += 1
-            print "."
+            print(".")
             return
 
         self.n_calls += 1
 
         n_frame = len(self.artists) + 1
         if n_frame > self.frame_limit:
-            print "frame limit succeeded, refusing to add frame"
+            print("frame limit succeeded, refusing to add frame")
             return
         else:
-            print "adding frame number: ", n_frame
+            print("Adding frame number: ", n_frame)
         frame_artists = []
 
         color = np.array(JUNC_COLOR).astype(float) / 255
@@ -589,9 +589,9 @@ class PeduncleAnimation(object):
     def save(self, extension='.mp4', dpi=200):
         """Save and close figure"""
         file_name = os.path.join(self.save_path, self.name) + extension
-        print "Saving animation to file" + file_name + "..."
+        print("Saving animation to file" + file_name + "...")
         ani = animation.ArtistAnimation(self.fig, self.artists)  # , interval=50, blit=True, repeat_delay=1000
         writer = animation.FFMpegWriter(fps=30, metadata=dict(artist='Taeke de Haan'), bitrate=-1)
         ani.save(file_name, writer, dpi=dpi)
         plt.close()
-        print "Done saving!"
+        print("Done saving!")

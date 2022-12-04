@@ -66,9 +66,9 @@ def main():
     time_min = min(time_s)
     time_max = max(time_s)
 
-    print 'Processing time: {mean:.2f}s +- {std:.2f}s (n = {n:d})'.format(mean=time_tot_mean, std=time_tot_std, n=N)
-    print 'Processing time lies between {time_min:.2f}s and {time_max:.2f}s (n = {n:d})'.format(time_min=time_min,
-                                                                                                time_max=time_max, n=N)
+    print('Processing time: {mean:.2f}s +- {std:.2f}s (n = {n:d})'.format(mean=time_tot_mean, std=time_tot_std, n=N))
+    print('Processing time lies between {time_min:.2f}s and {time_max:.2f}s (n = {n:d})'.format(time_min=time_min,
+                                                                                                time_max=time_max, n=N))
 
     width = 0.5
     fig, ax = plt.subplots()

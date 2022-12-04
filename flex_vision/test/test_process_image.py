@@ -12,6 +12,7 @@ from flex_vision.analyze_results.analyze_results import index_true_positives
 
 
 if TYPE_CHECKING:
+    # pylint: disable=unused-import
     import typing
 
 
