@@ -379,7 +379,7 @@ class ProcessImage(object):
 
             img_rgb_bright = change_brightness(img_rgb, brightness)
             branch_image = np.zeros(img_rgb_bright.shape[0:2], dtype=np.uint8)
-            coords = np.rint(geometry.coords_from_points(self.transform, points_keep, frame_id)).astype(np.int)
+            coords = np.rint(geometry.coords_from_points(points_keep, self.transform, frame_id)).astype(np.int)
             branch_image[coords[:, 1], coords[:, 0]] = 255
 
             if frame_id == self.ORIGINAL_FRAME_ID:
@@ -407,7 +407,7 @@ class ProcessImage(object):
             col = []
 
         else:
-            xy_centers = geometry.coords_from_points(self.transform, self.centers, target_frame_id)
+            xy_centers = geometry.coords_from_points(self.centers, self.transform, target_frame_id)
             xy_com = self.transform.apply(self.com, target_frame_id).coord
             radii = self.radii.tolist()
 
@@ -425,9 +425,9 @@ class ProcessImage(object):
         else:
             frame_id = self.ORIGINAL_FRAME_ID
 
-        peduncle_xy = geometry.coords_from_points(self.transform, self.peduncle_points, frame_id)
-        junc_xy = geometry.coords_from_points(self.transform, self.junction_points, frame_id)
-        end_xy = geometry.coords_from_points(self.transform, self.end_points, frame_id)
+        peduncle_xy = geometry.coords_from_points(self.peduncle_points, self.transform, frame_id)
+        junc_xy = geometry.coords_from_points(self.junction_points, self.transform, frame_id)
+        end_xy = geometry.coords_from_points(self.end_points, self.transform, frame_id)
         peduncle = {'junctions': junc_xy, 'ends': end_xy, 'peduncle': peduncle_xy}
         return peduncle
 
@@ -476,7 +476,7 @@ class ProcessImage(object):
             zoom = False
 
         img_rgb = self.get_rgb(local=local)
-        centers = geometry.coords_from_points(self.transform, self.centers, frame)
+        centers = geometry.coords_from_points(self.centers, self.transform, frame)
         com = self.transform.apply(self.com, frame).coord
 
         tomato = {'centers': centers, 'radii': self.radii, 'com': com}
@@ -509,11 +509,11 @@ class ProcessImage(object):
 
         grasp = self.get_grasp_location(local=local)
         tomato = self.get_tomatoes(local=local)
-        xy_junc = geometry.coords_from_points(self.transform, self.junction_points, frame_id)
+        xy_junc = geometry.coords_from_points(self.junction_points, self.transform, frame_id)
         img = self.get_rgb(local=local)
 
         # generate peduncle image
-        xy_peduncle = geometry.coords_from_points(self.transform, self.peduncle_points, frame_id)
+        xy_peduncle = geometry.coords_from_points(self.peduncle_points, self.transform, frame_id)
         rc_peduncle = np.around(np.array(xy_peduncle)).astype(np.int)[:, (1, 0)]
         arr = np.zeros(shape, dtype=np.uint8)
         arr[rc_peduncle[:, 0], rc_peduncle[:, 1]] = 1
