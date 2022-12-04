@@ -1,8 +1,4 @@
-"""
-Created on Tue Jun 16 16:05:23 2020
-
-@author: taeke
-"""
+""" imgpy.py: contains several utility function for dealing with images. """
 import logging
 import math
 import typing
@@ -56,7 +52,7 @@ def rotate(image, angle):
 
 
 def crop(image, bounding_box):
-    # type: (np.ndarray, typing.List[int]) -> np.ndarray
+    # type: (np.ndarray, typing.Tuple[int, int, int, int]) -> np.ndarray
     """ Crop the image by the provided bounding box.
 
     Args:
@@ -88,7 +84,7 @@ def compute_orientation(image):
 
 
 def compute_bounding_box(image):
-    # type: (np.ndarray) -> np.ndarray
+    # type: (np.ndarray) -> typing.Tuple[int, int, int, int]
     """ Find a bounding box around a provided image.
 
     Args:
@@ -97,4 +93,4 @@ def compute_bounding_box(image):
     Returns:
         The bounding box [x, y, w, h].
     """
-    return cv2.boundingRect(image)
+    return typing.cast(typing.Tuple[int, int, int, int], cv2.boundingRect(image))
