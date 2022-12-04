@@ -1,72 +1,76 @@
-"""
-Created on Tue Jun 16 16:05:23 2020
-
-@author: taeke
-"""
+""" imgpy.py: contains several utility function for dealing with images. """
 import logging
+import math
+import typing
+
 
 # External imports
 import cv2
 import numpy as np
-from skimage.measure import label, regionprops
-from skimage.transform import rotate as ski_rotate
+import skimage
+
 
 logger = logging.getLogger(__name__)
 
 
-def check_dimensions(image1, image2):
-    """check_dimensions"""
-    return image1.shape == image2.shape
-
-
-def add(image1, image2):
-    """add two images"""
-    if check_dimensions(image1, image2):
-        return cv2.bitwise_or(image1, image2)
-    else:
-        raise ValueError("Cannot add images: its dimensions do not match")
-
-
 def rotate(image, angle):
-    """returns a new image, rotated by angle in radians
-    angle: counter clockwise rotation in radians
+    # type: (np.ndarray, float) -> np.ndarray
+    """ Construct an rotated imaged by angle from the provided image>
+
+    Args:
+        image: The image to rotate.
+        angle: The angle by which to rotate the image in radians. 
+
+    Returns:
+        The rotated image
     """
-    dtype = image.dtype
-    value_max = np.iinfo(dtype).max
-    image_new = image.copy()
+    # Rotate a copy of the image, nd resize it such that no parts will be cut off.
+    image_rotate = skimage.transform.rotate(image.copy(), math.degrees(angle), resize=True)
 
-    # rotate returns a float in range [0, 1], this needs to be converted
-    image_rotate = ski_rotate(image_new, np.rad2deg(angle), resize=True)
-    image_rotate = (value_max * image_rotate).astype(dtype, copy=False)
-    return image_rotate
+    # Skimage rotate returns the image as a float in range [0, 1], this needs to be converted to the original dtype.
+    return (np.iinfo(image.dtype).max * image_rotate).astype(image.dtype, copy=False)
 
 
-def crop(image, angle, bounding_box):
-    """returns a new image, rotated by angle in radians and cropped by the boundingbox"""
-    image = rotate(image, angle)
-    image = cut(image, bounding_box)
-    return image
+def crop(image, bounding_box):
+    # type: (np.ndarray, typing.Tuple[int, int, int, int]) -> np.ndarray
+    """ Crop the image by the provided bounding box.
 
+    Args:
+        image: The original image
+        bounding_box: The bounding box by which to crop the image [x, y, w, h].
 
-def cut(image, bounding_box):
-    """returns the image cut, cut at the boundingbox"""
-    x = bounding_box[0]
-    y = bounding_box[1]
-    w = bounding_box[2]
-    h = bounding_box[3]
+    Returns:
+        The cropped image.
+    """
+    x, y, w, h = bounding_box
     return image[y:y+h, x:x+w]
 
 
-def compute_angle(image):
-    """returns the angle in radians based on the image"""
-    regions = regionprops(label(image), coordinates='xy')
+def compute_orientation(image):
+    # type: (np.ndarray) -> float
+    """ Compute the orientation in radians of the largest region in the image.
 
+    Args:
+        image: The image,
+
+    Returns:
+        The orientation in radians.
+    """
+    regions = skimage.measure.regionprops(skimage.measure.label(image), coordinates='xy')
     if len(regions) > 1:
-        logger.warning("Multiple regions found")
+        logger.warning("Multiple regions found while computing the orientation: the largest region will be used.")
 
-    return regions[0].orientation
+    return typing.cast(float, regions[0].orientation)
 
 
-def bbox(image):
-    """find bounding box around a mask"""
-    return cv2.boundingRect(image)
+def compute_bounding_box(image):
+    # type: (np.ndarray) -> typing.Tuple[int, int, int, int]
+    """ Find a bounding box around a provided image.
+
+    Args:
+        image: The image.
+
+    Returns:
+        The bounding box [x, y, w, h].
+    """
+    return typing.cast(typing.Tuple[int, int, int, int], cv2.boundingRect(image))

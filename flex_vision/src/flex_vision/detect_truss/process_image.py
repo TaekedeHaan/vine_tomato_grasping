@@ -204,17 +204,17 @@ class ProcessImage(object):
             logger.warning("Cannot rotate based on peduncle since it is empty")
             angle = 0.0
         else:
-            angle = imgpy.compute_angle(self.peduncle)  # [rad]
+            angle = imgpy.compute_orientation(self.peduncle)  # [rad]
 
         tomato_rotate = imgpy.rotate(self.tomato, -angle)
         peduncle_rotate = imgpy.rotate(self.peduncle, -angle)
-        truss_rotate = imgpy.add(tomato_rotate, peduncle_rotate)
+        truss_rotate = cv2.bitwise_or(tomato_rotate, peduncle_rotate)
 
         if not truss_rotate.sum():
             logger.warning("Cannot crop based on truss segment since it is empty")
             return False
 
-        self.bbox = imgpy.bbox(truss_rotate)
+        self.bbox = imgpy.compute_bounding_box(truss_rotate)
 
         self.transform = geometry.image_transform(
             self.ORIGINAL_FRAME_ID,
@@ -226,11 +226,11 @@ class ProcessImage(object):
         )
 
         self.angle = angle
-        self.tomato_crop = imgpy.cut(tomato_rotate, self.bbox)
-        self.peduncle_crop = imgpy.cut(peduncle_rotate, self.bbox)
-        self.img_rgb_crop = imgpy.crop(self.img_rgb, angle=-angle, bounding_box=self.bbox)
-        self.truss_crop = imgpy.cut(truss_rotate, self.bbox)
-        logger.debug("Successfully cropped image")
+        self.tomato_crop = imgpy.crop(tomato_rotate, self.bbox)
+        self.peduncle_crop = imgpy.crop(peduncle_rotate, self.bbox)
+        self.img_rgb_crop = imgpy.crop(imgpy.rotate(self.img_rgb, -self.angle), self.bbox)
+        self.truss_crop = imgpy.crop(truss_rotate, self.bbox)
+        logger.debug("Successfully rotated and cut image")
 
         if self.save:
             img_rgb = self.get_rgb(local=True)
@@ -394,9 +394,6 @@ class ProcessImage(object):
 
         return True
 
-    def crop(self, image):
-        return imgpy.crop(image, angle=-self.angle, bounding_box=self.bbox)
-
     def get_tomatoes(self, local=False):
         target_frame_id = self.LOCAL_FRAME_ID if local else self.ORIGINAL_FRAME_ID
         if self.centers is None:
@@ -546,9 +543,9 @@ class ProcessImage(object):
 
     def get_segments(self, local=False):
         if local:
-            tomato = self.tomato_crop  # self.crop(self.tomato)
-            peduncle = self.peduncle_crop  # self.crop(self.peduncle)
-            background = self.crop(self.background)
+            tomato = self.tomato_crop
+            peduncle = self.peduncle_crop
+            background = imgpy.crop(imgpy.rotate(self.background, -self.angle), self.bbox)
         else:
             tomato = self.tomato
             peduncle = self.peduncle
