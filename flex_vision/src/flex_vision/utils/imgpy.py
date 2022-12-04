@@ -13,26 +13,6 @@ import skimage
 logger = logging.getLogger(__name__)
 
 
-def add(image1, image2):
-    # type: (np.ndarray, np.ndarray) -> np.ndarray
-    """Add two images.
-
-    Args:
-        image1: The first image.
-        image2: THe second image.
-
-    Raises:
-        ValueError: If the shape of both images do not match.
-
-    Returns:
-        The added images.
-    """
-    if not image1.shape == image2.shape:
-        raise ValueError("Shape mismatch: cannot add image as the shape %s does not match with %s" %
-                         (image1.shape, image2.shape))
-    return cv2.bitwise_or(image1, image2)
-
-
 def rotate(image, angle):
     # type: (np.ndarray, float) -> np.ndarray
     """ Construct an rotated imaged by angle from the provided image>

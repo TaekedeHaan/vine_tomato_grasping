@@ -208,7 +208,7 @@ class ProcessImage(object):
 
         tomato_rotate = imgpy.rotate(self.tomato, -angle)
         peduncle_rotate = imgpy.rotate(self.peduncle, -angle)
-        truss_rotate = imgpy.add(tomato_rotate, peduncle_rotate)
+        truss_rotate = cv2.bitwise_or(tomato_rotate, peduncle_rotate)
 
         if not truss_rotate.sum():
             logger.warning("Cannot crop based on truss segment since it is empty")
