@@ -254,17 +254,16 @@ class ProcessImage(object):
                                             pwd=pwd,
                                             name=self.name)
 
+        if not radii:
+            logger.warning("Failed to detect any tomatoes in image %s", self.name)
+            return False
+
         # convert obtained coordinated to two-dimensional points linked to a coordinate frame
         self.radii = radii
         self.centers = geometry.points_from_coords(centers, self.LOCAL_FRAME_ID)
         self.com = geometry.Point2D(com, self.LOCAL_FRAME_ID)
-
-        if centers is None or not centers.any():
-            logger.warning("Failed to detect any tomatoes in image %s", self.name)
-            return False
-        else:
-            logger.debug("Successfully detected %d tomatoes in image %s", len(radii), self.name)
-            return True
+        logger.debug("Successfully detected %d tomatoes in image %s", len(radii), self.name)
+        return True
 
     @Timer("peduncle detection", name_space)
     def detect_peduncle(self):
@@ -396,7 +395,7 @@ class ProcessImage(object):
 
     def get_tomatoes(self, local=False):
         target_frame_id = self.LOCAL_FRAME_ID if local else self.ORIGINAL_FRAME_ID
-        if self.centers is None:
+        if not self.centers:
             radii = []
             xy_centers = [[]]
             xy_com = []
@@ -406,7 +405,7 @@ class ProcessImage(object):
         else:
             xy_centers = geometry.coords_from_points(self.centers, self.transform, target_frame_id)
             xy_com = self.transform.apply(self.com, target_frame_id).coord
-            radii = self.radii.tolist()
+            radii = self.radii
 
             row = [xy_center[1] for xy_center in xy_centers]
             col = [xy_center[0] for xy_center in xy_centers]
