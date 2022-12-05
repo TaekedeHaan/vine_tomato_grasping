@@ -1,6 +1,7 @@
 """
 @author: taeke
 """
+import math
 
 # External imports
 import cv2
@@ -9,6 +10,7 @@ import numpy as np
 from typing import TYPE_CHECKING
 
 # Flex vision imports
+from flex_vision.detect_truss import settings as detect_truss_settings
 from flex_vision.utils.util import plot_features
 
 if TYPE_CHECKING:
@@ -16,15 +18,6 @@ if TYPE_CHECKING:
     import typing
 
 logger = logging.getLogger(__name__)
-
-
-def compute_com(centers, radii):
-    """
-    Calculate the com of a set of spheres given their 2D centers and radii
-    """
-    centers = np.matrix(centers)
-    radii = np.array(radii)
-    return np.array((radii ** 3) * centers / (np.sum(radii ** 3)))
 
 
 def detect_tomato(img_segment,     # type: typing.Optional[np.ndarray]
@@ -35,7 +28,7 @@ def detect_tomato(img_segment,     # type: typing.Optional[np.ndarray]
                   pwd="",          # type: str
                   name=""          # type: str
                   ):
-    # type: (...) -> typing.Tuple(typing.Any, typing.Any, typing.Amy)
+    # type: (...) -> typing.Tuple(typing.List[typing.List[float]], typing.List[float], typing.Amy)
     """ Detect tomatoes in a provided image
 
     Args:
@@ -52,8 +45,9 @@ def detect_tomato(img_segment,     # type: typing.Optional[np.ndarray]
         radii: The estimated tomato radii in the provided image.
         com: The estimated center of mass.
     """
+    # Defaults
     img_rgb = img_rgb if img_rgb is not None else img_segment
-    settings = settings if settings is not None else settings.detect_tomato()
+    settings = settings if settings is not None else detect_truss_settings.detect_tomato()
 
     # Set settings
     if px_per_mm:
@@ -63,7 +57,6 @@ def detect_tomato(img_segment,     # type: typing.Optional[np.ndarray]
         dim = img_segment.shape
         radius_min_px = dim[1] / settings['radius_min_frac']
         radius_max_px = dim[1] / settings['radius_max_frac']
-    distance_min_px = radius_min_px * 2
 
     # Hough requires a gradient, thus the image is blurred
     blur_size = settings['blur_size']
@@ -73,16 +66,20 @@ def detect_tomato(img_segment,     # type: typing.Optional[np.ndarray]
     circles = cv2.HoughCircles(truss_blurred,
                                cv2.HOUGH_GRADIENT,
                                settings['dp'],
-                               distance_min_px,
+                               radius_min_px * 2,
                                param1=settings['param1'],
                                param2=settings['param2'],
                                minRadius=radius_min_px,
                                maxRadius=radius_max_px)
 
     if circles is not None:
-        centers, radii = circles[0][:, :2], circles[0][:, 2]  # [x, y, r]
+        # Centers consist of a list with [x, y, r], split into centers and radius
+        centers = circles[0][:, :2].tolist()
+        radii = circles[0][:, 2].tolist()
         com = compute_com(centers, radii)
     else:
+        logger.warning(
+            "Failed to detect any tomatoes using the cv2.HoughCircle detector within radius range [%d, %d]", radius_min_px, radius_max_px)
         centers, radii, com = [], [], None
 
     n_detected = len(radii)
@@ -91,14 +88,10 @@ def detect_tomato(img_segment,     # type: typing.Optional[np.ndarray]
         plot_features(img_rgb, tomato=tomato, pwd=pwd, file_name=name + '_1', zoom=True)
 
     # Remove the circles which do not overlap with the tomato segment
-    i_keep = find_overlapping_tomatoes(centers, radii, img_segment, ratio_threshold=settings['ratio_threshold'])
-    if len(i_keep) != 0:
-        centers = centers[i_keep, :]
-        radii = radii[i_keep]
+    centers, radii = select_filled_circles(centers, radii, img_segment, ratio_threshold=settings['ratio_threshold'])
+    if len(radii) != n_detected:
         com = compute_com(centers, radii)
-
-    if len(i_keep) != n_detected:
-        logger.info("Removed %d tomato(es) based on overlap", n_detected - len(i_keep))
+        logger.info("Removed %d tomato(es) based on overlap", n_detected - len(radii))
 
     # visualize result
     if save:
@@ -108,19 +101,43 @@ def detect_tomato(img_segment,     # type: typing.Optional[np.ndarray]
     return centers, radii, com
 
 
-def find_overlapping_tomatoes(centers, radii, img_segment, ratio_threshold=0.5):
-    iKeep = []
-    N = centers.shape[0]
-    for i in range(0, N):
+def select_filled_circles(centers, radii, mask, ratio_threshold=0.5):
+    # type: (np.ndarry, np.ndarray, np.ndarray, float) -> typing.Tuple[typing.List[typing.List[float]], typing.List[float]]
+    """ Select circles which not overlap with the provided mask.
 
-        image_empty = np.zeros(img_segment.shape, dtype=np.uint8)
-        mask = cv2.circle(image_empty, (centers[i, 0], centers[i, 1]), radii[i], 255, -1)
+    Args:
+        centers: The circle centers.
+        radii: The circle radii.
+        mask: The mask.
+        ratio_threshold: The overlap ratio threshold. Defaults to 0.5.
 
-        res = cv2.bitwise_and(img_segment, mask)
-        pixels = np.sum(res == 255)
-        total = np.pi * radii[i] ** 2
-        ratio = pixels / total
-        if ratio > ratio_threshold:
-            iKeep.append(i)
+    Returns:
+        The selected circle centers.
+        The selected circle radii.
+    """
+    centers_out = []
+    radii_out = []
+    for center, radius in zip(centers, radii):
+        empty_mask = np.zeros(mask.shape, dtype=np.uint8)
+        circle_mask = cv2.circle(empty_mask, (int(round(center[0])), int(
+            round(center[1]))), int(round(radius)), 255, -1)
+        overlap_mask = cv2.bitwise_and(mask, circle_mask)
+        overlap_ratio = (np.sum(overlap_mask == 255) / (np.pi * radius ** 2))
+        if overlap_ratio < ratio_threshold:
+            logger.debug("Removing circle %.1f, %.1f with radius %.1f because it only overlaps with %.1f%% with the mask",
+                         center[0], center[1], radius, 100*overlap_ratio)
+            continue
 
-    return iKeep
+        centers_out.append(center)
+        radii_out.append(radius)
+
+    return centers_out, radii_out
+
+
+def compute_com(centers, radii):
+    """
+    Calculate the com of a set of spheres given their 2D centers and radii
+    """
+    centers = np.matrix(centers)
+    radii = np.array(radii)
+    return np.array((radii ** 3) * centers / (np.sum(radii ** 3)))
