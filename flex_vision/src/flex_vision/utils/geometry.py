@@ -191,7 +191,8 @@ def vectorize(data):
         elif coord.shape == (2, 1):
             return coord
         else:
-            raise ValueError("Shape mismatch: Expected numpy array has shape (1, 2) or (2,1), but has %s" % data.shape)
+            raise ValueError(
+                "Shape mismatch: Expected numpy array has shape (1, 2) or (2,1), but has shape %s" % (data.shape, ))
 
 
 def rotation_matrix(angle):

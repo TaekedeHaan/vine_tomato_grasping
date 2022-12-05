@@ -37,22 +37,22 @@ class DetectTomatoTests(unittest.TestCase):
         self.assertEqual(len(radii_out), 2)
         np.testing.assert_almost_equal(centers_out, [[78.0, 154.0], [54.0, 102.0]])
         np.testing.assert_almost_equal(radii_out, [29.6000004, 23.2000008])
-        np.testing.assert_almost_equal(com_out[0][0], [70.1998877])
-        np.testing.assert_almost_equal(com_out[0][1], [137.0997568])
+        self.assertAlmostEqual(com_out[0], 70.1998877)
+        self.assertAlmostEqual(com_out[1], 137.0997568)
 
     def test_compute_com_identical_radius(self):
-        centers = np.array([[10.0, 20.0], [40.0, -20.0]])
-        radii = np.array([10.0, 10.0])
+        centers = [[10.0, 20.0], [40.0, -20.0]]
+        radii = [10.0, 10.0]
         com = detect_tomato.compute_com(centers, radii)
-        self.assertAlmostEqual(com[0, 0], 25.0)
-        self.assertAlmostEqual(com[0, 1], 0.0)
+        self.assertAlmostEqual(com[0], 25.0)
+        self.assertAlmostEqual(com[1], 0.0)
 
     def test_compute_com_different_radius(self):
-        centers = np.array([[10.0, 20.0], [40.0, -20.0]])
-        radii = np.array([10.0, 5.0])
+        centers = [[10.0, 20.0], [40.0, -20.0]]
+        radii = [10.0, 5.0]
         com = detect_tomato.compute_com(centers, radii)
-        self.assertAlmostEqual(com[0, 0], 13.3333333333333333)
-        self.assertAlmostEqual(com[0, 1], 15.555555555555556)
+        self.assertAlmostEqual(com[0], 13.3333333333333333)
+        self.assertAlmostEqual(com[1], 15.555555555555556)
 
     def test_select_filled_circles_all_identical(self):
         centers = np.array([[10.0, 20.0], [40.0, 100.0]])

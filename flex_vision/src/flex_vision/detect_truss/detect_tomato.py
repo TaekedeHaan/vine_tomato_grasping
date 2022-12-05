@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def detect_tomato(img_segment,     # type: typing.Optional[np.ndarray]
+def detect_tomato(img_segment,     # type: np.ndarray
                   settings=None,   # type: typing.Optional[typing.Dict[str, typing.Any]]
                   px_per_mm=None,  # type: typing.Optional[float]
                   img_rgb=None,    # type: typing.Optional[np.ndarray]
@@ -28,7 +28,7 @@ def detect_tomato(img_segment,     # type: typing.Optional[np.ndarray]
                   pwd="",          # type: str
                   name=""          # type: str
                   ):
-    # type: (...) -> typing.Tuple(typing.List[typing.List[float]], typing.List[float], typing.Amy)
+    # type: (...) -> typing.Tuple[typing.List[typing.List[float]], typing.List[float], typing.Any]
     """ Detect tomatoes in a provided image
 
     Args:
@@ -101,8 +101,12 @@ def detect_tomato(img_segment,     # type: typing.Optional[np.ndarray]
     return centers, radii, com
 
 
-def select_filled_circles(centers, radii, mask, ratio_threshold=0.5):
-    # type: (np.ndarry, np.ndarray, np.ndarray, float) -> typing.Tuple[typing.List[typing.List[float]], typing.List[float]]
+def select_filled_circles(centers,             # type: typing.List[typing.List[float]]
+                          radii,               # type: typing.List[float]
+                          mask,                # type: np.ndarray
+                          ratio_threshold=0.5  # float
+                          ):
+    # type: (...) -> typing.Tuple[typing.List[typing.List[float]], typing.List[float]]
     """ Select circles which not overlap with the provided mask.
 
     Args:
@@ -118,9 +122,9 @@ def select_filled_circles(centers, radii, mask, ratio_threshold=0.5):
     centers_out = []
     radii_out = []
     for center, radius in zip(centers, radii):
+        rounded_center = (int(round(center[0])), int(round(center[1])))
         empty_mask = np.zeros(mask.shape, dtype=np.uint8)
-        circle_mask = cv2.circle(empty_mask, (int(round(center[0])), int(
-            round(center[1]))), int(round(radius)), 255, -1)
+        circle_mask = cv2.circle(empty_mask, rounded_center, int(round(radius)), 255, -1)
         overlap_mask = cv2.bitwise_and(mask, circle_mask)
         overlap_ratio = (np.sum(overlap_mask == 255) / (np.pi * radius ** 2))
         if overlap_ratio < ratio_threshold:
@@ -135,9 +139,16 @@ def select_filled_circles(centers, radii, mask, ratio_threshold=0.5):
 
 
 def compute_com(centers, radii):
+    # type: (typing.List[typing.List[float]], typing.List[float]) -> typing.List[float]
+    """ Calculate the com of a set of spheres given their 2D centers and radii.
+
+    Args:
+        centers: List of 2D center coordinates.
+        radii: List of sphere radii.
+
+    Returns:
+        The center of mass.
     """
-    Calculate the com of a set of spheres given their 2D centers and radii
-    """
-    centers = np.matrix(centers)
-    radii = np.array(radii)
-    return np.array((radii ** 3) * centers / (np.sum(radii ** 3)))
+    radii3 = np.array(radii) ** 3
+    center_weighted = np.array([[radius3 * center[0], radius3 * center[1]] for center, radius3 in zip(centers, radii3)])
+    return np.sum(center_weighted, axis=0)/sum(radii3).tolist()
