@@ -1,8 +1,4 @@
-"""
-@author: taeke
-"""
-import math
-
+""" detect_tomato.py: contains the main detect tomato procedure. """
 # External imports
 import cv2
 import logging
@@ -90,7 +86,7 @@ def detect_tomato(img_segment,     # type: np.ndarray
     # Remove the circles which do not overlap with the tomato segment
     centers, radii = select_filled_circles(centers, radii, img_segment, ratio_threshold=settings['ratio_threshold'])
     if len(radii) != n_detected:
-        com = compute_com(centers, radii)
+        com = compute_com(centers, radii)  # recompute CoM
         logger.info("Removed %d tomato(es) based on overlap", n_detected - len(radii))
 
     # visualize result
@@ -149,6 +145,8 @@ def compute_com(centers, radii):
     Returns:
         The center of mass.
     """
+    if not centers:
+        raise ValueError("Empty input: cannot compute CoM for zero tomatoes")
     radii3 = np.array(radii) ** 3
     center_weighted = np.array([[radius3 * center[0], radius3 * center[1]] for center, radius3 in zip(centers, radii3)])
-    return np.sum(center_weighted, axis=0)/sum(radii3).tolist()
+    return np.sum(center_weighted, axis=0)/sum(radii3).tolist()  # type: ignore

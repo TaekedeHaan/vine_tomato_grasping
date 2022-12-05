@@ -40,6 +40,18 @@ class DetectTomatoTests(unittest.TestCase):
         self.assertAlmostEqual(com_out[0], 70.1998877)
         self.assertAlmostEqual(com_out[1], 137.0997568)
 
+    def test_compute_com_no_tomato(self):
+        centers = []
+        radii = []
+        self.assertRaises(ValueError, detect_tomato.compute_com, centers, radii)
+
+    def test_compute_com_single_tomato(self):
+        centers = [[10.0, 20.0]]
+        radii = [10.0]
+        com = detect_tomato.compute_com(centers, radii)
+        self.assertAlmostEqual(com[0], 10.0)
+        self.assertAlmostEqual(com[1], 20.0)
+
     def test_compute_com_identical_radius(self):
         centers = [[10.0, 20.0], [40.0, -20.0]]
         radii = [10.0, 10.0]
