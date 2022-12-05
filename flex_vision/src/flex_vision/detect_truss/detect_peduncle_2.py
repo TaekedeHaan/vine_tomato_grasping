@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+from typing import TYPE_CHECKING
 
 # External imports
 import cv2
@@ -14,33 +15,57 @@ from sklearn import linear_model
 from sklearn.metrics.pairwise import euclidean_distances
 
 # Flex vision imports
+from flex_vision.detect_truss.settings import detect_peduncle as detect_peduncle_settings
 from flex_vision.utils.util import add_circles, add_arrows, add_contour
 from flex_vision.utils.util import plot_image, save_fig
 from flex_vision.utils.util import remove_blobs, bin2img, img2bin
+
+if TYPE_CHECKING:
+    # pylint: disable=unused-import
+    import typing
 
 NEW_PATH_COLOUR = [130, 50, 230]
 JUNC_COLOR = (100, 0, 200)
 END_COLOR = (200, 0, 0)
 
 
-def detect_peduncle(peduncle_img, settings=None, px_per_mm=None, bg_img=None, save=False, name="", pwd=""):
-    if settings is None:
-        settings = settings.detect_peduncle()
+def detect_peduncle(image,           # type: np.ndarray
+                    settings=None,   # type: typing.Optional[typing.Dict[str, typing.Any]]
+                    px_per_mm=None,  # type: typing.Optional[float]
+                    bg_img=None,     # type: np.ndarray
+                    save=False,      # type: bool
+                    name="",         # type: str
+                    pwd=""           # type: str
+                    ):
+    # type: (...) -> typing.Tuple[np.ndarray, typing.Dict[typing.Any], np.ndarray, np.ndarray]
+    """ Detect the peduncle in a provided image
 
-    if (bg_img is not None) and save:
-        fig = plt.figure()
+    Args:
+        image: The grayscale image in which to detect the tomatoes.
+        settings: The detect peduncle settings dictionary. Default to None.
+        px_per_mm: The pixels per millimeter estimate. If provided the branch length can be limited in millimeters. Default to None.
+        bg_img: The RGB image, used for plotting. Default to None.
+        save: Save the image is set to True. Defaults to False.
+        name: The file name to use when saving the image. Defaults to "".
+        pwd: The path to store the saved image. Defaults to "".
+
+    Returns:
+        centers: The tomato center locations in the provided image.
+        radii: The estimated tomato radii in the provided image.
+        com: The estimated center of mass.
+    """
+    settings = settings if settings is not None else detect_peduncle_settings()
+    bg_img = bg_img if bg_img is not None else image
+    if save:
         plot_image(bg_img)
-        save_fig(fig, pwd, name + "_00")
-
-    if bg_img is None:
-        bg_img = peduncle_img
+        save_fig(plt.gcf(), pwd, name + "_00")
 
     if px_per_mm:
         branch_length_min_px = px_per_mm * settings['branch_length_min_mm']
     else:
         branch_length_min_px = settings['branch_length_min_px']
 
-    skeleton_img = skeletonize_img(peduncle_img)
+    skeleton_img = bin2img(skeletonize(img2bin(image)))
     junc_coords, end_coords = get_node_coord(skeleton_img)
 
     if save:
@@ -48,7 +73,7 @@ def detect_peduncle(peduncle_img, settings=None, px_per_mm=None, bg_img=None, sa
                            name=name + "_01", pwd=pwd)
 
     if save:
-        fit_ransac(peduncle_img, bg_img=bg_img.copy(), name=name + "_ransac", pwd=pwd)
+        fit_ransac(image, bg_img=bg_img.copy(), name=name + "_ransac", pwd=pwd)
 
     # update_image = True
     # while update_image:
@@ -306,10 +331,6 @@ def node_coord_angle(src, dst):
     return np.rad2deg(np.arctan2((dst[0] - src[0]), (dst[1] - src[1])))
 
 
-def skeletonize_img(img):
-    return bin2img(skeletonize(img2bin(img)))
-
-
 def get_branch_center(branch_data, dist_mat, pixel_coordinates, skeleton_img):
     loc = np.argwhere(skeleton_img)
     all_branch = {'junction-junction': [], 'junction-endpoint': []}
@@ -357,21 +378,17 @@ def path_mask(path, pixel_coordinates, shape):
     return img.astype(np.uint8)
 
 
-def visualize_skeleton(img, skeleton_img, do_skeletonize=False, coord_junc=None, coord_end=None, junc_nodes=None,
+def visualize_skeleton(img, skeleton_img, coord_junc=None, coord_end=None, junc_nodes=None,
                        end_nodes=None, branch_data=None, name="", pwd=None, show_nodes=True, skeleton_color=None,
                        skeleton_width=4, show_img=True):
 
     if skeleton_color is None:
         skeleton_color = (0, 150, 30)
 
-    if do_skeletonize:
-        skeleton_img = skeletonize_img(skeleton_img)
-
     if show_img:
-        fig = plt.figure()
         plot_image(img)
-    else:
-        fig = plt.gcf()
+
+    fig = plt.gcf()
 
     add_contour(skeleton_img, skeleton_color, linewidth=skeleton_width, zorder=6)
 
@@ -414,14 +431,14 @@ def visualize_skeleton(img, skeleton_img, do_skeletonize=False, coord_junc=None,
         save_fig(fig, pwd, name)
 
 
-def fit_ransac(peduncle_img, bg_img=None, name="", pwd=""):
+def fit_ransac(image, bg_img=None, name="", pwd=""):
     pend_color = np.array([0, 150, 30])
     stem_color = np.array([110, 255, 128])
     # skeletonize peduncle segment
-    shape = peduncle_img.shape
+    shape = image.shape
 
     factor = 5
-    mask_index = np.argwhere(peduncle_img)
+    mask_index = np.argwhere(image)
     cols = mask_index[:, 1].reshape(-1, 1)  # x, spould be 2D
     rows = mask_index[:, 0]  # y
 
@@ -457,7 +474,6 @@ def fit_ransac(peduncle_img, bg_img=None, name="", pwd=""):
     inlier_contours, _ = cv2.findContours(img_inlier, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[-2:]
     outlier_contours, _ = cv2.findContours(img_outlier, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[-2:]
 
-    fig = plt.figure()
     plot_image(bg_img)
 
     for contour in inlier_contours:
@@ -471,7 +487,7 @@ def fit_ransac(peduncle_img, bg_img=None, name="", pwd=""):
     plt.legend(loc='lower right')
     plt.title("RANSAC")
     if pwd is not None:
-        save_fig(fig, pwd, name)
+        save_fig(plt.gcf(), pwd, name)
 
     return img_inlier
 
