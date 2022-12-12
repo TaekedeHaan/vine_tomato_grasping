@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+""" detect_peduncle.py: contains the main detect peduncle procedure. """
 import os
 from typing import TYPE_CHECKING
 

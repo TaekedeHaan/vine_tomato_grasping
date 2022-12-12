@@ -20,7 +20,7 @@ from flex_vision.utils.util import stack_segments, change_brightness
 from flex_vision.utils.util import plot_grasp_location, plot_image, plot_features, plot_segments
 
 from flex_vision.detect_truss.filter_segments import filter_segments
-from flex_vision.detect_truss.detect_peduncle_2 import detect_peduncle, visualize_skeleton
+from flex_vision.detect_truss.detect_peduncle import detect_peduncle, visualize_skeleton
 from flex_vision.detect_truss.detect_tomato import detect_tomato
 from flex_vision.detect_truss.segment_image import segment_truss
 from flex_vision.detect_truss import settings
