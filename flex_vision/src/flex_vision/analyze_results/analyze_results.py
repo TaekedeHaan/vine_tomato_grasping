@@ -234,6 +234,63 @@ def index_true_positives(lbl_centers, res_centers, dist_tresh, px_per_mm):
     return tp_predictions, tp_labels, false_pos, false_neg
 
 
+def load_labels(file):
+    """ Load image labels from file.
+
+    Args:
+        file: The file to load the labels from.
+
+    Returns:
+        The tomato labels.
+        The peduncle labels.
+    """
+
+    with open(file, "r") as read_file:
+        data_lbl = json.load(read_file)
+
+    tomato_lbl = {'radii': [], 'centers': []}
+    peduncle_lbl = {'junctions': [], 'ends': []}
+    shapes = data_lbl['shapes']
+
+    for shape in shapes:
+        label = shape['label']
+        shape_type = shape['shape_type']
+        if label == 'tomato':
+            if shape_type != 'circle':
+                logger.error("I do not know what to do with %s of shape type %s", label, shape_type)
+                continue
+
+            points = shape['points']
+            center = points[0]
+            radius = euclidean_distance(points[0], points[1])
+
+            tomato_lbl['centers'].append(center)
+            tomato_lbl['radii'].append(radius)
+
+        elif label == 'junction':
+            if shape_type != 'point':
+                logger.error("I do not know what to do with %s of shape type %s", label, shape_type)
+                continue
+
+            point = shape['points'][0]
+            peduncle_lbl['junctions'].append(point)
+
+        elif label == 'end_point' or label == 'end':
+            if shape_type != 'point':
+                logger.error("I do not know what to do with %s of shape type %s", label, shape_type)
+                continue
+
+            point = shape['points'][0]
+            peduncle_lbl['ends'].append(point)
+
+        else:
+            logger.error("Found unknown label %s", label)
+
+    # compute com
+    tomato_lbl['com'] = compute_com(tomato_lbl['centers'], tomato_lbl['radii'])
+    return tomato_lbl, peduncle_lbl
+
+
 def main():
     i_start = 1
     i_end = 85
@@ -278,46 +335,6 @@ def main():
             print('Info does not exist for image: ' + truss_name + ' skipping this file!')
             continue
 
-        with open(file_lbl, "r") as read_file:
-            data_lbl = json.load(read_file)
-
-        tomato_lbl = {'radii': [], 'centers': []}
-        peduncle_lbl = {'junctions': [], 'ends': []}
-        shapes = data_lbl['shapes']
-
-        for shape in shapes:
-            label = shape['label']
-            shape_type = shape['shape_type']
-            if label == 'tomato':
-                if shape_type != 'circle':
-                    print("I do not know what to do with ", label, " of shape type ", shape_type)
-
-                else:
-                    points = shape['points']
-                    center = points[0]
-                    radius = euclidean_distance(points[0], points[1])
-
-                    tomato_lbl['centers'].append(center)
-                    tomato_lbl['radii'].append(radius)
-
-            elif label == 'junction':
-                if shape_type != 'point':
-                    print("I do not know what to do with ", label, " of shape type ", shape_type)
-
-                else:
-                    point = shape['points'][0]
-                    peduncle_lbl['junctions'].append(point)
-
-            elif label == 'end_point' or label == 'end':
-                if shape_type != 'point':
-                    print("I do not know what to do with ", label, " of shape type ", shape_type)
-
-                point = shape['points'][0]
-                peduncle_lbl['ends'].append(point)
-
-            else:
-                logger.error("Found unknown label %s", label)
-
         if use_mm:
             with open(file_inf, "r") as read_file:
                 data_inf = json.load(read_file)
@@ -328,8 +345,7 @@ def main():
             unit = '[px]'
             px_per_mm = 1
 
-        # compute com
-        tomato_lbl['com'] = compute_com(tomato_lbl['centers'], tomato_lbl['radii'])
+        tomato_lbl, peduncle_lbl = load_labels(file_lbl)
 
         if save_results:
             plot_features(img_rgb, tomato=tomato_lbl, pwd=pwd_store, file_name=truss_name + '_tom_lbl')
