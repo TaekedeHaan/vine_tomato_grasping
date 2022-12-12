@@ -105,10 +105,9 @@ def detect_peduncle(image,           # type: np.ndarray
 
     # make sure that end nodes are not labeled as junctions
     if junc_coords.shape[0] != 0:
-        for end_coord in end_coords:
-            dst = distance(junc_coords, end_coord)
-            mask = dst > 0.1
-            junc_coords = junc_coords[mask]
+        dst = euclidean_distances(junc_coords, end_coords)
+        mask = np.all(dst > 0.1, axis=1)
+        junc_coords = junc_coords[mask]
 
     if save:
         visualize_skeleton(bg_img, path_img, coord_junc=junc_coords,  # junc_nodes=junc_nodes, end_nodes=end_nodes,
@@ -285,40 +284,22 @@ def get_node_coord(skeleton_img):
     return junc_node_coord, end_node_coord
 
 
-def distance(coords, coord):
-    """ euclidean distance between coordinates two numpy array"""
-    return np.sum((coords - coord) ** 2, axis=1)
-
-
 def coords_to_nodes(pixel_coordinates, coords):
-    nodes = []
-    for coord in coords:
-        nodes.append(np.argmin(distance(pixel_coordinates, coord)))
-
-    return np.array(nodes)
+    return np.argmin(euclidean_distances(pixel_coordinates, coords), axis=0)
 
 
 def mean_absolute_deviation(data, axis=None):
-    """
-    mean absolute deviation
-    """
+    """ Compute the mean absolute deviation.
+
+    Args:
+        data: The data of which to compute the mean absolute deviation
+        axis (optional): The axis along which to compute the mean absolute deviation. Defaults to None
+
+    Returns:
+        The mean absolute deviation
+
+     """
     return np.mean(np.absolute(data - np.median(data, axis)), axis)
-
-
-def get_path(from_node, to_node, pred, dist, timeout=1000):
-    path = []
-    length = 0
-    count = 0
-    while (to_node != -9999) and (count < timeout):
-        count += 1
-        path.append(to_node)
-        length += dist[(from_node, to_node)]
-        to_node = pred[(from_node, to_node)]
-
-    if count > 0.9 * timeout:
-        print(count)
-
-    return path, length
 
 
 def get_path_coordinates(path, pixel_coordinates):
@@ -329,6 +310,18 @@ def get_path_coordinates(path, pixel_coordinates):
 
 
 def node_coord_angle(src, dst):
+    # type: (typing.List[float], typing.List[float]) -> float
+    """ Compute the angle of the vector trough two 2D points in degrees. 
+
+    Note that the order matters, e.g. (0, 0), (1, 0) -> 0.0, while (1, 0), (0, 0) -> 180
+
+    Args:
+        src: The source 2D point
+        dst: The destination 2D point
+
+    Returns:
+        Angle in degrees.
+    """
     return np.rad2deg(np.arctan2((dst[0] - src[0]), (dst[1] - src[1])))
 
 
