@@ -42,7 +42,7 @@ def main():
         px_per_mm = load_px_per_mm(constants.PATH_DATA, tomato_name)
         process_image.add_image(rgb_data, px_per_mm=px_per_mm, name=tomato_name)
 
-        success = process_image.process_image()
+        process_image.process_image()
         process_image.get_truss_visualization(local=True, save=True)
         process_image.get_truss_visualization(local=False, save=True)
 

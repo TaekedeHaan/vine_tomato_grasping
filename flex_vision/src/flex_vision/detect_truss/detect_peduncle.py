@@ -234,41 +234,41 @@ def update_skeleton(skeleton_img, skeleton, i_remove):
     return bin2img(skeletonize(img / max_value))
 
 
-def threshold_branch_length(skeleton_img, distance_threshold):
+def threshold_branch_length(skeleton_img, length_threshold):
+    """ Threshold the tip-junction branch length to a minimum distance.
+
+    Args:
+        skeleton_img: The skeletonized image.
+        length_threshold: The minimum branch length.
+
+    Returns:
+        The updated skeleton, without the tip-junction branches below a minimum distance.
+    """
     skeleton = skan.Skeleton(skeleton_img)
     branch_data = skan.summarize(skeleton)
 
-    tip_junction = branch_data['branch-type'] == 1
-
-    b_remove = (branch_data['branch-distance'] < distance_threshold) & tip_junction
-    i_remove = b_remove.to_numpy().nonzero()[0]  # np.argwhere(b_remove)[:, 0]
-
-    return update_skeleton(skeleton_img, skeleton, i_remove), b_remove
+    b_remove = (branch_data['branch-distance'] < length_threshold) & branch_data['branch-type'] == 1
+    return update_skeleton(skeleton_img, skeleton, np.where(b_remove)[0]), b_remove
 
 
 def get_node_coord(skeleton_img):
-    """
-    Finds all junction and end nodes on a provided skeleton
+    """ Finds the junction and tip coordinates on a provided skeletonized image.
+
+    Args:
+        skeleton_img: The skeletonized image.
+
+    Returns:
+        The junction coordinates
+        The tip coordinates
     """
     if np.all(skeleton_img == 0):
         return None, None
 
     skeleton = skan.Skeleton(img2bin(skeleton_img))
-    branch_data = skan.summarize(skeleton)
 
-    # get all node IDs
-    src_node_id = np.unique(branch_data['node-id-src'].values)
-    dst_node_id = np.unique(branch_data['node-id-dst'].values)
-    all_node_id = np.unique(np.append(src_node_id, dst_node_id))
-
-    # get end and junc node IDs
-    end_node_index = skeleton.degrees[all_node_id] == 1
-    end_node_id = all_node_id[end_node_index]
-    junc_node_id = np.setdiff1d(all_node_id, end_node_id)
-
-    # get coordinates
-    end_node_coord = skeleton.coordinates[end_node_id][:, [1, 0]]
-    junc_node_coord = skeleton.coordinates[junc_node_id][:, [1, 0]]
+    # Not that x and y are swapped
+    end_node_coord = skeleton.coordinates[skeleton.degrees == 1][:, [1, 0]]
+    junc_node_coord = skeleton.coordinates[skeleton.degrees > 2][:, [1, 0]]
     return junc_node_coord, end_node_coord
 
 
