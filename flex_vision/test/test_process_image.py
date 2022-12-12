@@ -1,14 +1,16 @@
 #!/usr/bin/env python2
-# External imports
-import numpy as np
+import os
 import unittest
-from matplotlib import pyplot as plt
 from typing import TYPE_CHECKING
 
 # External imports
+import numpy as np
+from matplotlib import pyplot as plt
+
+# External imports
 from flex_vision.utils import util
-from flex_vision.detect_truss.process_image import ProcessImage
-from flex_vision.analyze_results.analyze_results import index_true_positives
+from flex_vision.detect_truss.process_image import ProcessImage, load_px_per_mm
+from flex_vision.analyze_results.analyze_results import index_true_positives, load_labels
 
 
 if TYPE_CHECKING:
@@ -18,7 +20,63 @@ if TYPE_CHECKING:
 
 class TestProcessImage(unittest.TestCase):
 
-    def test_process_image(self):
+    def test_process_loaded_image(self):
+        process_image = ProcessImage()
+        path_data = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "doc", "data")
+        image = util.load_image(os.path.join(path_data, "003.png"), horizontal=True)
+        px_per_mm = load_px_per_mm(path_data, "003")
+        tomato_labels, peduncle_labels = load_labels(os.path.join(path_data, "003.json"))
+
+        # process the generated image
+        process_image.add_image(image, px_per_mm=px_per_mm, name='test')
+        process_image.process_image()
+        features_prediction = process_image.get_object_features()
+
+        self.assertEqual(len(features_prediction['tomato']['centers']), 5)
+        self.assertEqual(len(features_prediction['peduncle']['ends']), 2)
+        self.assertEqual(len(features_prediction['peduncle']['junctions']), 5)
+
+        # analyze results
+        i_prediction, i_label, false_pos, false_neg = index_true_positives(
+            tomato_labels['centers'],
+            features_prediction['tomato']['centers'],
+            10,
+            px_per_mm
+        )
+
+        # We expect two true positives, and zero false positives and negatives.
+        self.assertEqual(len(i_prediction), 5)
+        self.assertEqual(len(false_pos), 0)
+        self.assertEqual(len(false_neg), 0)
+
+        centers_prediction = np.array(features_prediction['tomato']['centers'])[i_prediction]
+        radii_prediction = np.array(features_prediction['tomato']['radii'])[i_prediction]
+
+        self.assertAlmostEqual(centers_prediction[0][0], 549.7881678698697)
+        self.assertAlmostEqual(centers_prediction[0][1], 274.68872806054696)
+        self.assertAlmostEqual(centers_prediction[1][0], 664.1974201115523)
+        self.assertAlmostEqual(centers_prediction[1][1], 215.10246285203556)
+
+        self.assertAlmostEqual(radii_prediction[0], 65.4000015258789)
+        self.assertAlmostEqual(radii_prediction[1], 56.599998474121094)
+
+        self.assertAlmostEqual(features_prediction['peduncle']['ends'][0][0], 563.8586837966153)
+        self.assertAlmostEqual(features_prediction['peduncle']['ends'][0][1], 202.8902560604048)
+        self.assertAlmostEqual(features_prediction['peduncle']['ends'][1][0], 729.2420385394588)
+        self.assertAlmostEqual(features_prediction['peduncle']['ends'][1][1], 391.2790720076441)
+
+        self.assertAlmostEqual(features_prediction['peduncle']['junctions'][0][0], 594.7981415781189)
+        self.assertAlmostEqual(features_prediction['peduncle']['junctions'][0][1], 228.73111425409792)
+        self.assertAlmostEqual(features_prediction['peduncle']['junctions'][1][0], 638.1158902406581)
+        self.assertAlmostEqual(features_prediction['peduncle']['junctions'][1][1], 248.26499893710678)
+
+        self.assertAlmostEqual(features_prediction['grasp_location']['xy'][0], 684.5548474015093)
+        self.assertAlmostEqual(features_prediction['grasp_location']['xy'][1], 288.82881603822074)
+        self.assertAlmostEqual(features_prediction['grasp_location']['angle'], 3.6575823053802727)
+        self.assertEqual(features_prediction['grasp_location']['col'], 685)
+        self.assertEqual(features_prediction['grasp_location']['row'], 289)
+
+    def test_process_generated_image(self):
         process_image = ProcessImage()
         radius_minimum_mm = process_image.settings['detect_tomato']['radius_min_mm']
         radius_maximum_mm = process_image.settings['detect_tomato']['radius_max_mm']
