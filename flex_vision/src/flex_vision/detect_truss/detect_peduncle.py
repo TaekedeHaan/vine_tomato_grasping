@@ -214,18 +214,6 @@ def find_path(dist, pred, junc_nodes, end_nodes, pixel_coordinates, bg_image=Non
     return best_path, best_length, best_branch_data
 
 
-def get_locations_on_mask(mask, coords, allowable_distance=1):
-    mask_coords = np.argwhere(mask)
-    coord_keep = []
-
-    for coord in coords:
-        dist = np.sqrt(np.sum(np.power(mask_coords - coord[[1, 0]], 2), 1))
-        if np.amin(dist) < allowable_distance:
-            coord_keep.append(coord)
-
-    return np.array(coord_keep)
-
-
 def update_skeleton(skeleton_img, skeleton, i_remove):
     dtype = skeleton_img.dtype
     max_value = np.iinfo(dtype).max
