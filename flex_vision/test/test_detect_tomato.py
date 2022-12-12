@@ -22,6 +22,13 @@ class DetectTomatoTests(unittest.TestCase):
         self.assertEqual(len(radii_out), 0)
         self.assertEqual(com_out, None)
 
+        # Add both circles
+        circle_mask = 255*np.ones((200, 200), dtype=np.uint8)
+        centers_out, radii_out, com_out = detect_tomato.detect_tomato(circle_mask)
+        self.assertEqual(len(centers_out), 0)
+        self.assertEqual(len(radii_out), 0)
+        self.assertEqual(com_out, None)
+
     def test_detect_tomato(self):
         centers = [[78.0, 155.0], [55.0, 103.0]]
         radii = [30.0, 25.0]
