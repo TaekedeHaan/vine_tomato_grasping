@@ -67,41 +67,51 @@ def detect_peduncle(image,           # type: np.ndarray
         branch_length_min_px = settings['branch_length_min_px']
 
     skeleton_img = bin2img(skeletonize(img2bin(image)))
-    junc_coords, end_coords = get_node_coord(skeleton_img)
 
     if save:
+        junc_coords, end_coords = get_node_coord(skeleton_img)
         visualize_skeleton(bg_img, skeleton_img, coord_junc=junc_coords, coord_end=end_coords,
                            name=name + "_01", pwd=pwd)
 
     if save:
         fit_ransac(image, bg_img=bg_img.copy(), name=name + "_ransac", pwd=pwd)
 
-    # update_image = True
-    # while update_image:
+    # Remove short tip-junction branches
     skeleton_img, _ = threshold_branch_length(skeleton_img, branch_length_min_px)
-    # update_image = b_remove.any()
     junc_coords, end_coords = get_node_coord(skeleton_img)
 
     if save:
         visualize_skeleton(bg_img.copy(), skeleton_img, coord_junc=junc_coords, coord_end=end_coords,
                            name=name + "_02", pwd=pwd)
 
+    # Construct a graph from the skeleton
     graph, pixel_coordinates, _ = skan.skeleton_to_csgraph(skeleton_img, unique_junctions=True)
-    dist, pred = csgraph.shortest_path(graph, directed=False, return_predecessors=True)
+    distance_matrix, predecessors = csgraph.shortest_path(graph, directed=False, return_predecessors=True)
 
+    # Get the nodes
     end_nodes = coords_to_nodes(pixel_coordinates, end_coords[:, [1, 0]])
     junc_nodes = coords_to_nodes(pixel_coordinates, junc_coords[:, [1, 0]])
 
+    # Find the peduncle path
     path, _, branch_data = find_path(
-        dist, pred, junc_nodes, end_nodes, pixel_coordinates, bg_image=bg_img.copy(), do_animate=False)
+        distance_matrix,
+        predecessors,
+        junc_nodes,
+        end_nodes,
+        pixel_coordinates,
+        bg_image=bg_img.copy(),
+        do_animate=False
+    )
 
-    branch_data = get_branch_center(branch_data, dist, pixel_coordinates, skeleton_img)
+    branch_data = get_branch_center(branch_data, distance_matrix, pixel_coordinates, skeleton_img)
 
     path_img = path_mask(path, pixel_coordinates, skeleton_img.shape)
     junc_coords = pixel_coordinates[get_ids_on_path(path, pixel_coordinates, junc_nodes)][:, [1, 0]]
-    end_coords = pixel_coordinates[get_ids_on_path(path, pixel_coordinates, end_nodes)][:, [1, 0]]
 
-    end_coords = np.array([pixel_coordinates[path[0]][[1, 0]], pixel_coordinates[path[-1]][[1, 0]]])
+    if path:
+        end_coords = np.array([pixel_coordinates[path[0]][[1, 0]], pixel_coordinates[path[-1]][[1, 0]]])
+    else:
+        end_coords = pixel_coordinates[get_ids_on_path(path, pixel_coordinates, end_nodes)][:, [1, 0]]
 
     # make sure that end nodes are not labeled as junctions
     if junc_coords.shape[0] != 0:
@@ -120,16 +130,11 @@ def detect_peduncle(image,           # type: np.ndarray
     return path_img, branch_data, junc_coords, end_coords
 
 
-def find_path(dist, pred, junc_nodes, end_nodes, pixel_coordinates, bg_image=None, timeout=1000, do_animate=True):
+def find_path(distance_matrix, predecessors, junc_nodes, end_nodes, pixel_coordinates, bg_image=None, timeout=1000, do_animate=True):
     # initialize
     best_path = []
     best_length = 0
-
-    if do_animate:
-        start_nodes = [384]
-    else:
-        start_nodes = end_nodes
-
+    start_nodes = [384] if do_animate else end_nodes
     for start_node in start_nodes:
 
         if do_animate:
@@ -151,7 +156,7 @@ def find_path(dist, pred, junc_nodes, end_nodes, pixel_coordinates, bg_image=Non
 
             while count < timeout:
 
-                from_node = pred[end_node, from_node]
+                from_node = predecessors[end_node, from_node]
                 subpath.append(from_node)
                 count += 1
 
@@ -180,7 +185,7 @@ def find_path(dist, pred, junc_nodes, end_nodes, pixel_coordinates, bg_image=Non
                     else:
                         # reset path
                         if len(path) > 1:
-                            length = dist[(path[0], path[-1])]
+                            length = distance_matrix[(path[0], path[-1])]
 
                         if length >= best_length:
                             best_path = path
@@ -201,7 +206,7 @@ def find_path(dist, pred, junc_nodes, end_nodes, pixel_coordinates, bg_image=Non
                     my_animation.add_frame(path, subpath, start_node, end_node)
 
             if len(path) > 1:
-                length = dist[(path[0], path[-1])]
+                length = distance_matrix[(path[0], path[-1])]
 
             if length >= best_length:
                 best_path = path
@@ -248,32 +253,39 @@ def threshold_branch_length(skeleton_img, length_threshold):
     branch_data = skan.summarize(skeleton)
 
     b_remove = (branch_data['branch-distance'] < length_threshold) & branch_data['branch-type'] == 1
-    return update_skeleton(skeleton_img, skeleton, np.where(b_remove)[0]), b_remove
+    updated_skeleton_img = update_skeleton(skeleton_img, skeleton, np.where(b_remove)[0])
+    return updated_skeleton_img, b_remove
 
 
 def get_node_coord(skeleton_img):
+    # type: (np.ndarray) -> typing.Tuple[np.ndarray, np.ndarray]
     """ Finds the junction and tip coordinates on a provided skeletonized image.
 
     Args:
         skeleton_img: The skeletonized image.
 
     Returns:
-        The junction coordinates
-        The tip coordinates
+        A 2D array with the junction coordinates
+        A 2D array with the tip coordinates
     """
-    if np.all(skeleton_img == 0):
-        return None, None
 
     skeleton = skan.Skeleton(img2bin(skeleton_img))
-
-    # Not that x and y are swapped
-    end_node_coord = skeleton.coordinates[skeleton.degrees == 1][:, [1, 0]]
-    junc_node_coord = skeleton.coordinates[skeleton.degrees > 2][:, [1, 0]]
+    end_node_coord = skeleton.coordinates[skeleton.degrees == 1][:, [1, 0]]  # Note that x and y are swapped
+    junc_node_coord = skeleton.coordinates[skeleton.degrees > 2][:, [1, 0]]  # Note that x and y are swapped
     return junc_node_coord, end_node_coord
 
 
 def coords_to_nodes(pixel_coordinates, coords):
-    return np.argmin(euclidean_distances(pixel_coordinates, coords), axis=0)
+    """ Map pixel coordinates to indices in the graph.
+
+    Args:
+        pixel_coordinates: An array, mapping indices in graph to pixel coordinates.
+        coords: The coordinates to map to the indices.
+
+    Returns:
+        The indices.
+    """
+    return np.argmin(euclidean_distances(pixel_coordinates, coords), axis=0) if coords.size else np.array([], dtype=np.uint8)
 
 
 def mean_absolute_deviation(data, axis=None):
@@ -475,10 +487,28 @@ def fit_ransac(image, bg_img=None, name="", pwd=""):
 
 
 def get_ids_on_path(path, pixel_coordinates, node_ids, threshold=0.001):
+    """ Get node ID's which lie on a provided path.
+
+    Args:
+        path: _description_
+        pixel_coordinates: _description_
+        node_ids: _description_
+        threshold: _description_. Defaults to 0.001.
+
+    Returns:
+        _description_
+    """
+    # If empty there is nothing to remove.
+    if not node_ids.size:
+        return node_ids
+
+    # If the path is empty, no nodes will remain
+    if not path:
+        return np.array([], dtype=node_ids.dtype)
+
     row, col = get_path_coordinates(path, pixel_coordinates)
     path_coordinates = np.column_stack([row, col])  # [row, col]
     node_coordinates = pixel_coordinates[node_ids]  # [row, col]
-
     dist = euclidean_distances(path_coordinates, node_coordinates)
 
     # return the node coordaine, thus index = 1
